@@ -1,0 +1,5 @@
+# 开发笔记与会话记忆 —— 打包 / 分发 / 推送时一律排除（见 SKILL.md「已知边界」）
+.workbuddy/
+
+# macOS
+.DS_Store
