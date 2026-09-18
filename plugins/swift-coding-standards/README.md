@@ -30,10 +30,12 @@
 
 ```
 /plugin marketplace add pluginsWriter/swift-coding-standards
-/plugin validate ./plugins/swift-coding-standards
 /plugin install swift-coding-standards@swift-standards
 /reload-plugins
 ```
+
+（`/plugin validate` 是可选命令，校验本地的插件或市场清单；只在你已 clone 本仓库、且当前目录就是
+仓库根时才用得上，例如 `/plugin validate ./plugins/swift-coding-standards`。）
 
 装完**不要只看命令回显**，去确认快照真的落地了：
 
@@ -45,51 +47,46 @@ ls ~/.workbuddy/plugins/cache/swift-standards/swift-coding-standards/
 
 ### 其它 agent（Codex / Claude Code / opencode）
 
-这些客户端直接按目录发现 skill，把本目录链到它们的 skill 根目录即可：
+这些客户端按目录发现 skill。clone 本仓库后，把插件目录链到它们的 skill 根目录即可：
 
 ```sh
-ln -sfn /Users/ugreen/Desktop/Application/swift-coding-standards/plugins/swift-coding-standards \
-        ~/.agents/skills/swift-coding-standards
+git clone https://github.com/pluginsWriter/swift-coding-standards
+cd swift-coding-standards/plugins/swift-coding-standards
+
+mkdir -p ~/.agents/skills ~/.claude/skills
+ln -sfn "$PWD" ~/.agents/skills/swift-coding-standards   # Codex
+ln -sfn "$PWD" ~/.claude/skills/swift-coding-standards   # Claude Code
 ```
 
-各客户端会读取的位置（opencode 会读全部三类）：
+| 客户端 | 全局路径 | 说明 |
+| --- | --- | --- |
+| Codex | `~/.agents/skills/swift-coding-standards/SKILL.md` | 需上面第一条链接 |
+| Claude Code | `~/.claude/skills/swift-coding-standards/SKILL.md` | 需上面第二条链接 |
+| opencode | `~/.config/opencode/skills/swift-coding-standards/SKILL.md` | 通常无需额外操作：opencode 会自动加载 `~/.agents/skills` 与 `~/.claude/skills`（即上面两处）；仅当你想装进它自己的目录时才用此路径 |
 
-| 客户端 | 全局路径 |
-| --- | --- |
-| Codex | `~/.agents/skills/<名称>/SKILL.md` |
-| Claude Code | `~/.claude/skills/<名称>/SKILL.md` |
-| opencode | `~/.config/opencode/skills/<名称>/SKILL.md`、`~/.claude/skills/…`、`~/.agents/skills/…` |
+链接名必须与 `SKILL.md` 里的 `name` 一致（都是 `swift-coding-standards`）。
 
-目录名必须与 `SKILL.md` 里的 `name` 一致（都是 `swift-coding-standards`）。
+注意：用插件方式安装时，本地副本落在**带版本号的缓存目录**，升级后会换目录 —— 不要把缓存目录链给其它客户端，长期使用请用上面的 clone。
 
 ## 用法
 
-规范本身不需要调用。三条自检脚本按需手动跑：
+规范本身不需要调用。自检脚本按需手动跑 —— 前两条检查**本 skill 自身**，在插件目录内执行：
 
 ```sh
-SKILL=/Users/ugreen/Desktop/Application/swift-coding-standards/plugins/swift-coding-standards
-
-bash "$SKILL/scripts/verify_consistency.sh" --strict   # 内部一致性（副本是否漂移）
-bash "$SKILL/scripts/verify_citations.sh"              # 引文与快照双向校验（纯离线）
-bash "$SKILL/scripts/verify_member_spacing.sh" --check # 成员之间缺空行（只读）
+bash scripts/verify_consistency.sh --strict   # 内部一致性（副本是否漂移）
+bash scripts/verify_citations.sh              # 引文与快照双向校验（纯离线）
 ```
 
-整改存量工程与刷新权威来源快照见 `references/remediation-playbook.md`
-与 `scripts/fetch_official_sources.sh --help`。
+第三条检查**你的 Swift 工程**。参数顺序是「目录在前、开关在后」，目录不可省，否则会以用法错误退出：
 
-## 目录结构
+```sh
+PROJ=/path/to/your-swift-project
+bash scripts/verify_member_spacing.sh "$PROJ" --check   # 成员之间缺空行（只读）
+```
 
-| 路径 | 内容 |
-| --- | --- |
-| `SKILL.md` | 入口：默认生效声明、高频规则、场景索引、终检清单 |
-| `references/swift-coding-standards.md` | 规范正文（含版本表与附录 C 变更记录） |
-| `references/remediation-playbook.md` | 整改手册：9 条验收标准与分批流程 |
-| `references/defect-catalog.md` | 17 类缺陷全景（含可检查性与检测手段） |
-| `references/naming-antipatterns.md` | 命名词典；**第 0 节是可接受词表的唯一权威** |
-| `references/comment-standards.md` | 文档注释规范 |
-| `references/official/` | 权威来源的逐字原文快照 + 来源登记（见下「许可」） |
-| `assets/` | `.swift-format` 与 `.swiftlint.yml` 模板 |
-| `scripts/` | 三个自检脚本 + 整改/引导/快照刷新脚本 |
+整改存量工程见 `references/remediation-playbook.md`。权威来源快照的状态查看与刷新见
+`scripts/fetch_official_sources.sh` 的头部注释（`--status` 离线看状态、`--freshness` 联网比对上游、
+`--check` 只查可达；**不带参数即重新抓取**）。
 
 ## 许可与第三方内容
 
