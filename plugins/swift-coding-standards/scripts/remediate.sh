@@ -15,10 +15,10 @@
 # 选项：
 #   --check              只采集基线、生成待办清单与报告（默认，不改源码）
 #   --fix                执行机械修复（会修改源码，执行前必须已获用户批准）
-#   --report <路径>      报告输出路径（默认 <工程>/SWIFT_STANDARD_REPORT.md）
-#   --dirs "<目录...>"   源码目录，空格分隔（默认自动探测 Sources Tests；
+#   --report 路径        报告输出路径（默认 工程目录/SWIFT_STANDARD_REPORT.md）
+#   --dirs "目录1 目录2" 源码目录，空格分隔（默认自动探测 Sources Tests；
 #                        注意：目录名本身不能含空格）
-#   --max-per-rule <n>   每类规则最多列出多少条明细（默认 15，避免报告过长）
+#   --max-per-rule N     每类规则最多列出多少条明细（默认 15，避免报告过长）
 #   --allow-missing-config  跳过配置自动生成、直接在无配置下继续（不推荐，见下）
 #   -h, --help           显示帮助
 #
@@ -229,7 +229,7 @@ fmt_dist() { grep -oE '\[[A-Za-z]+\]' | sort | uniq -c | sort -rn; }
 
 # 输出 `file<TAB>line<TAB>col<TAB>rule`，按位置去重。
 # 用 awk 而非 sed：BSD sed 对本机需要的正则（分组 + 交替）解析失败，
-# 且 swiftlint 行格式固定为 `<path>:<line>:<col>: <level>: <msg> (<rule>)`。
+# 且 swiftlint 行格式固定为 `FILE:LINE:COL: LEVEL: MSG (RULE)`。
 lint_rows() {
   [ "$SWIFTLINT_OK" -eq 1 ] || return 0
   swiftlint lint --quiet --no-cache 2>/dev/null | awk '
@@ -411,7 +411,7 @@ LINT_DIST="$(printf '%s\n' "$LINT_RAW" | lint_dist)"
   echo
   echo "## 6. 提交拆分要求"
   echo
-  echo "- 格式改动：每个 Target 一个提交，\`style: apply swift-format to <module>\`"
+  echo "- 格式改动：每个 Target 一个提交，\`style: apply swift-format to TARGET_NAME\`"
   echo "- 语义/命名改动：与格式提交**分开**"
   echo "- public API 重命名：先写 ADR，单独成批，完整回归受影响测试"
   echo

@@ -2,12 +2,13 @@
 
 > 配合 `swift-coding-standards.md` 第 0 章使用。第 0 章给结论，本文给**怎么查**与**怎么改**。
 > 所有命令在 macOS 默认 shell（zsh / BSD 工具链）下可直接运行。
+> 命令中的 `$SKILL` / `$PROJ` / `$DIRS` 约定见 `SKILL.md`「路径与变量约定」。
 
 ## 0. 使用方式
 
 ```bash
 # 一次性拿到全部类别的数量（推荐，已内置去重与 stderr 处理）
-bash <skill-dir>/scripts/remediate.sh <工程目录> --check
+bash "$SKILL/scripts/remediate.sh" "$PROJ" --check
 
 # 或按下面的单条命令逐类排查
 ```
@@ -35,7 +36,7 @@ bash <skill-dir>/scripts/remediate.sh <工程目录> --check
 | 13 | 冗余代码 | `swiftlint lint --quiet 2>&1 \| grep unneeded_synthesized_initializer` | 删掉手写 init |
 | 15 | 测试断言过弱 | `swiftlint lint --quiet 2>&1 \| grep -E 'xctfail_message\|xct_specific_matcher'` | 补失败说明；改用专用断言 |
 | 16 | 行长失控 | `swiftlint lint --quiet 2>&1 \| grep line_length` | 先提取中间变量，再断行 |
-| 17 | 成员间缺分隔空行 | `bash <skill-dir>/scripts/verify_member_spacing.sh <目录>...`（**swift-format 与 SwiftLint 都没有这条规则**，只能用它） | `--fix` 插入空行；注意 S5 除外条款：单行存储属性之间、单行 enum case 之间、紧密相关的两个属性之间**可以**不留空行，不要误改 |
+| 17 | 成员间缺分隔空行 | `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS`（**swift-format 与 SwiftLint 都没有这条规则**，只能用它） | `--fix` 插入空行；注意 S5 除外条款：单行存储属性之间、单行 enum case 之间、紧密相关的两个属性之间**可以**不留空行，不要误改 |
 
 ## 2. 需要判断，但可用 grep 定量（部分可检出）
 

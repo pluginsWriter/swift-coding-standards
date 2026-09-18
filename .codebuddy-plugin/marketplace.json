@@ -9,7 +9,7 @@
       "name": "swift-coding-standards",
       "description": "所有 Swift 工程的默认编码规范与强制工具链（swift-format + SwiftLint）：命名、格式、注释、语言与并发约束、体量上限、17 类缺陷检测与完整整改流程。",
       "description_en": "Default coding standards and enforced toolchain (swift-format + SwiftLint) for every Swift project: naming, formatting, comments, language and concurrency constraints, size limits, a 17-category defect catalog, and a full remediation workflow.",
-      "version": "1.5.7",
+      "version": "1.5.8",
       "source": "./plugins/swift-coding-standards",
       "category": "coding-standards",
       "author": {

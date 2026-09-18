@@ -23,10 +23,13 @@
 #   bash fetch_official_sources.sh --check      # 联网：只校验各源是否可达，不写文件
 #   bash fetch_official_sources.sh              # 联网：重新抓取全部快照（刷新 bundle）
 #   bash fetch_official_sources.sh --missing    # 联网：只补缺失/损坏的文件
+#   bash fetch_official_sources.sh -h, --help   # 显示本帮助
 #
-# 退出码：0 成功；1 有源不可达或 --freshness 发现上游已变更
+# 退出码：0 成功；1 有源不可达或 --freshness 发现上游已变更；2 用法错误
 
 set -uo pipefail
+
+usage() { sed -n '2,/^[[:space:]]*$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT_DIR="$SKILL_DIR/references/official"
@@ -40,8 +43,9 @@ while [ $# -gt 0 ]; do
     --check)     MODE="check";     shift ;;
     --status)    MODE="status";    shift ;;
     --freshness) MODE="freshness"; shift ;;
+    -h|--help)   usage; exit 0 ;;
     "")          shift ;;
-    *) echo "未知参数：$1（可用：--missing / --check / --status / --freshness）" >&2; exit 2 ;;
+    *) echo "未知参数：$1" >&2; usage; exit 2 ;;
   esac
 done
 

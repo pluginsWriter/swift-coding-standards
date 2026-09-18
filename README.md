@@ -20,14 +20,6 @@
 **其它 agent（Codex / Claude Code / opencode）**：把 `plugins/swift-coding-standards` 链到各自的 skill 目录，
 例如 `ln -sfn "$PWD/plugins/swift-coding-standards" ~/.agents/skills/swift-coding-standards`。
 
-## 仓库结构
-
-| 路径 | 内容 |
-| --- | --- |
-| `.codebuddy-plugin/marketplace.json` | 市场清单（本仓库作为市场） |
-| `plugins/swift-coding-standards/` | 插件本体 = skill 本体 |
-| `plugins/swift-coding-standards/.codebuddy-plugin/plugin.json` | 插件清单 |
-
 ## 许可
 
 原创内容以 **MIT** 发布（见 [`LICENSE`](LICENSE)）。

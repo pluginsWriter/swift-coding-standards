@@ -60,6 +60,21 @@ compatibility: Requires a Swift 6.x toolchain (for the bundled `swift format`) a
 - **禁止魔法字符串**：同一字面量出现 ≥ 2 次必须提取具名常量。
 - **体量上限**：函数 60 行、类型 300 行、复杂度 15、参数 6 个。
 
+## 路径与变量约定
+
+下文命令统一使用三个变量，**照抄前先定义一次**：
+
+```bash
+SKILL=/path/to/swift-coding-standards   # 本 skill 所在目录（含 SKILL.md 的那一层）
+PROJ=/path/to/your-swift-project        # 被处理的 Swift 工程根目录
+DIRS="Sources Tests"                    # 工程的源码目录；Xcode 工程按实际填，可以是多个
+```
+
+`$DIRS` 有意**不加引号**（要按空格拆成多个目录参数）；`$SKILL` 与 `$PROJ` 一律加引号（路径可能含空格）。
+
+> 命令一律用「先定义变量再引用」的写法，不要用尖括号包裹的占位符 —— zsh 会把 `<` 当成输入重定向，
+> 照抄会直接报解析错误（`parse error`）。这条由 `scripts/verify_consistency.sh` 第 10 节机器检查。
+
 ## 工作流
 
 ### 场景零：集成后自检（默认执行，纯离线）
@@ -67,7 +82,7 @@ compatibility: Requires a Swift 6.x toolchain (for the bundled `swift format`) a
 本 skill **内置权威来源原文快照**（`references/official/`，含 S1–S6），随 skill 一起分发 —— 集成、复制、移动后都**不需要联网、不需要下载**，引用关系不会断。
 
 ```bash
-bash <skill-dir>/scripts/verify_citations.sh
+bash "$SKILL/scripts/verify_citations.sh"
 ```
 
 它校验规范正文中标注为原文的句子与快照逐字一致，并会在快照缺失时明确报错。此步骤零网络、秒级完成。
@@ -75,7 +90,7 @@ bash <skill-dir>/scripts/verify_citations.sh
 更新快照是**维护者的主动动作**，不是集成步骤：
 
 ```bash
-bash <skill-dir>/scripts/fetch_official_sources.sh --freshness  # 联网对比上游，只报告
+bash "$SKILL/scripts/fetch_official_sources.sh" --freshness  # 联网对比上游，只报告
 ```
 
 ### 场景零之二：内部一致性自检（改完 skill 后跑，纯离线）
@@ -83,8 +98,8 @@ bash <skill-dir>/scripts/fetch_official_sources.sh --freshness  # 联网对比�
 SKILL.md、规范正文、整改手册、命名词典、两个模板资产之间存在多处**同一事实的副本**（验收条数、版本号、缩进/行长、规则分工、引文表）。历史上正是这些手抄副本造成了漂移。
 
 ```bash
-bash <skill-dir>/scripts/verify_consistency.sh          # 不一致记 FAIL，已知待决项记 WARN
-bash <skill-dir>/scripts/verify_consistency.sh --strict # 待决项也算 FAIL
+bash "$SKILL/scripts/verify_consistency.sh"          # 不一致记 FAIL，已知待决项记 WARN
+bash "$SKILL/scripts/verify_consistency.sh" --strict # 待决项也算 FAIL
 ```
 
 期望值一律**从单一权威来源推导**（条数取自手册表格行数、版本号取自变更记录末行、阈值取自模板资产），不在脚本里写第二份硬编码 —— 硬编码只会制造下一个漂移源。
@@ -92,7 +107,7 @@ bash <skill-dir>/scripts/verify_consistency.sh --strict # 待决项也算 FAIL
 ### 场景一：为工程安装规范工具链
 
 ```bash
-bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
+bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 ```
 
 脚本会检测工具、安装 `.swift-format` 与 `.swiftlint.yml`、并输出违规基线。要执行修复，显式加 `--fix`（会修改源码，执行前必须先向用户确认）。
@@ -135,13 +150,13 @@ bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
 2. 采集基线、生成报告骨架与待办清单（只读）：
 
    ```bash
-   bash <skill-dir>/scripts/remediate.sh <工程目录> --check
+   bash "$SKILL/scripts/remediate.sh" "$PROJ" --check
    ```
 
 3. 获用户批准后执行机械修复（**只解决格式**，会改源码）：
 
    ```bash
-   bash <skill-dir>/scripts/remediate.sh <工程目录> --fix
+   bash "$SKILL/scripts/remediate.sh" "$PROJ" --fix
    ```
 
    脚本会打印前后对比与剩余违规数，**并明确拒绝把「只修了格式」当作完成**。
@@ -159,9 +174,9 @@ bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
 5. 终检**必须三条都干净**：
 
    ```bash
-   swift format lint --recursive --strict <dirs>                    # 必须无输出
-   swiftlint lint --strict --quiet                                  # 必须无输出（注意 --strict）
-   bash <skill-dir>/scripts/verify_member_spacing.sh <dirs> --quiet    # 必须 0 处（前两条查不出）
+   swift format lint --recursive --strict $DIRS                      # 必须无输出
+   swiftlint lint --strict --quiet                                   # 必须无输出（注意 --strict）
+   bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS --quiet      # 必须 0 处（前两条查不出）
    ```
 
 6. 把人工整改结果补进报告，**如实列出剩余项与理由**。
@@ -182,7 +197,7 @@ bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
   - 实测（swiftlint 0.63）：同一段 `print(value!)`，无 `.swiftlint.yml` 时报 **0 条**，有配置时报 1 条 `force_unwrapping` —— opt_in 规则在无配置时完全不生效。
   - 更隐蔽的一种：`.swiftlint.yml` 的 `included` 是相对**配置文件所在目录**解析的；列出的目录不存在时（典型是 Xcode 工程没有 `Sources/`）SwiftLint 一条都不扫，同样报「0 违规」。脚本会检测并拒绝。
   - 确实要在无配置下采基线，才显式加 `--allow-missing-config`（报告里会标注基线不可信）。
-- **源码目录按工程形态确定**：脚本默认探测 `Sources` + `Tests`；`.xcodeproj` / `.xcworkspace` 工程通常没有这两个目录，会回退到整个工程根并可能扫到 `DerivedData/`、`Pods/` —— 必须用 `--dirs "<目录…>"` 显式指定，并同步修改 `.swiftlint.yml` 的 `included` 为同样的目录。
+- **源码目录按工程形态确定**：脚本默认探测 `Sources` + `Tests`；`.xcodeproj` / `.xcworkspace` 工程通常没有这两个目录，会回退到整个工程根并可能扫到 `DerivedData/`、`Pods/` —— 必须用 `--dirs "目录1 目录2"` 显式指定，并同步修改 `.swiftlint.yml` 的 `included` 为同样的目录。
 
 ## 迁移纪律
 
@@ -204,7 +219,7 @@ bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
 - `assets/swiftlint.yml` —— SwiftLint 配置模板（安装时复制为 `.swiftlint.yml`）
 - `scripts/bootstrap_swift_style.sh` —— 工具链安装与基线采集
 - `scripts/remediate.sh` —— **完整整改管线**：基线 → 机械修复 → 复检 → 待办清单 → 报告（`--check` / `--fix`）
-- `scripts/fetch_official_sources.sh` —— 快照巡检与刷新（`--status` 离线；`--freshness` / `--check` / 刷新需联网）
+- `scripts/fetch_official_sources.sh` —— 快照巡检与刷新（`--status` 离线；`--freshness` / `--check` / 刷新需联网；`-h` 看用法）
 - `scripts/verify_citations.sh` —— 离线校验正文引文与快照是否逐字一致（含反向启发扫描：正文斜体英文句必须有快照出处）
-- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额、发布清单（插件·市场·许可）；期望值一律从单一权威来源推导，不写第二份硬编码
+- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额、发布清单（插件·市场·许可）、文档命令可照抄性；期望值一律从单一权威来源推导，不写第二份硬编码
 - `scripts/verify_member_spacing.sh` —— **成员间空行检查**：swift-format 与 SwiftLint 都查不出这条规则，只能靠它（`--check` 只读 / `--fix` 只插空行）；判据与已知漏检边界写在脚本头部

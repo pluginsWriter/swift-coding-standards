@@ -10,9 +10,12 @@
 
 以下 9 条**全部满足**才算整改完成。任何一条不满足都必须继续，并在报告中如实说明剩余项。
 
+> 验证命令里的 `$SKILL` / `$PROJ` / `$DIRS` 三个变量约定见 `SKILL.md`「路径与变量约定」。
+> 不要用尖括号包裹的占位符 —— zsh 会把 `<` 当成输入重定向，照抄直接报 `parse error`。
+
 | # | 验收标准 | 验证方式 |
 | --- | --- | --- |
-| 1 | 格式零违规 | `swift format lint --recursive --strict <dirs>` 无输出，**且** `bash <skill-dir>/scripts/verify_member_spacing.sh <dirs> --quiet` 报 0 处（成员间空行不在 swift-format 的规则集里，前者查不出） |
+| 1 | 格式零违规 | `swift format lint --recursive --strict $DIRS` 无输出，**且** `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS --quiet` 报 0 处（成员间空行不在 swift-format 的规则集里，前者查不出） |
 | 2 | 语义零违规 | `swiftlint lint --strict --quiet` 无输出 |
 | 3 | 命名只剩「可接受项」 | 无单字母、无自造缩写与生僻词、无超长名；**保留的常用词需在报告中列出理由** |
 | 4 | 无强制解包类缺陷 | 无 `force_unwrapping` / `force_try` / `force_cast` / 隐式解包可选 / `unowned` |
@@ -60,19 +63,25 @@
 
 无论哪种策略，四类必改项都必须修：**分号、块内多语句压行、`defer{`、关键字与花括号之间缺空格**。需要长期豁免的个别位置加 `// swift-format-ignore`。
 
-> **还有一类不在这四类里，但漏了它就是假达标**：成员之间缺分隔空行（规范 4.7，缺陷目录第 17 类）。**swift-format 与 SwiftLint 都没有这条规则**，`swift format lint` 永远不报，只能用 `bash <skill-dir>/scripts/verify_member_spacing.sh <目录>...` 检出（`--fix` 可插空行）。「格式零违规」的结论必须包含这一条的数字。
+> **还有一类不在这四类里，但漏了它就是假达标**：成员之间缺分隔空行（规范 4.7，缺陷目录第 17 类）。**swift-format 与 SwiftLint 都没有这条规则**，`swift format lint` 永远不报，只能用 `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS` 检出（`--fix` 可插空行）。「格式零违规」的结论必须包含这一条的数字。
 
 ### 第 ③ 步的补救：机械修复已经跑过、而树上有在制品（规范 8.2 第 1 条）
 
 规范 8.2 第 1 条要求「存在未提交的在制品 → 先把在制品单独提交，再执行重排」。**顺序反过来时**（在制品早已在树上、机械修复已经跑完）不要 `git add -A` 一把提交 —— 那正是「格式与逻辑混进同一个提交」的现场。用补丁把两者拆开：
 
 1. **立刻**把这次纯格式增量单独存成补丁，并**存到仓库外**（`/tmp`、`/var/folders` 会被系统清理）：
-   `git diff -- <本次被改动的文件> > <仓库外路径>/format.patch`
-   验收两条：补丁里 `^+` 开头的行应**全部为空行**（非空新增为 0）；`git apply --check -R` 能精确还原当前工作区。
-2. 要提交在制品逻辑改动时走三步：`patch -p1 -R < 补丁`（先撤掉格式）→ 提交逻辑 → `patch -p1 < 补丁`（再放回格式）→ 单独提交格式。
-3. 事后复核：`bash <skill-dir>/scripts/verify_member_spacing.sh --check <目录>...` 应为 0 处，确认格式增量仍在。
 
-⚠️ **`git apply` 有静默跳过陷阱**（已实测）：当仓库根在代码目录的**上一级**（例：仓库根 `dock-center-macos`、代码在 `dock-center-macos/UGDockNative`），补丁路径通常是相对代码目录生成的，而 `git apply` 按**仓库根**解析路径 —— 路径对不上时它只打印 `Skipped patch`，**返回 0 且文件纹丝不动**，看起来像成功。可靠写法只有两种：在代码目录用 `patch -p1 [-R]`；或从仓库根用 `git apply [-R] --directory=<代码目录> -p1`。执行后**必须**用 `git diff --stat` 或文件字节数确认真的生效。
+   ```bash
+   CHANGED_FILES="Sources/HomeView.swift Sources/HomeStore.swift"   # 换成本次被格式工具改动的文件
+   PATCH_DIR=/path/to/outside-repo                                  # 必须落在仓库外
+   git diff -- $CHANGED_FILES > "$PATCH_DIR/format.patch"
+   ```
+
+   验收两条：补丁里 `^+` 开头的行应**全部为空行**（非空新增为 0）；`git apply --check -R` 能精确还原当前工作区。
+2. 要提交在制品逻辑改动时走三步：`patch -p1 -R < "$PATCH_DIR/format.patch"`（先撤掉格式）→ 提交逻辑 → `patch -p1 < "$PATCH_DIR/format.patch"`（再放回格式）→ 单独提交格式。
+3. 事后复核：`bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS --check` 应为 0 处，确认格式增量仍在。
+
+⚠️ **`git apply` 有静默跳过陷阱**（已实测）：当仓库根在代码目录的**上一级**（例：仓库根 `dock-center-macos`、代码在 `dock-center-macos/UGDockNative`），补丁路径通常是相对代码目录生成的，而 `git apply` 按**仓库根**解析路径 —— 路径对不上时它只打印 `Skipped patch`，**返回 0 且文件纹丝不动**，看起来像成功。可靠写法只有两种：在代码目录用 `patch -p1 [-R]`；或从仓库根用 `git apply [-R] --directory=CODE_DIR -p1`（`CODE_DIR` = 代码目录相对仓库根的路径）。执行后**必须**用 `git diff --stat` 或文件字节数确认真的生效。
 
 ---
 
@@ -88,19 +97,19 @@ swift format --in-place --recursive Sources Tests
 swift format lint --recursive Sources Tests 2>&1 | grep -E 'DoNotUseSemicolons|AddLines'
 
 # 两种策略都要跑 —— swift-format 查不出的「成员间缺空行」
-bash <skill-dir>/scripts/verify_member_spacing.sh Sources Tests
+bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS
 ```
 
 `swiftlint lint --fix` 在本规范配置下作用有限（格式规则已禁用），可跑但不要指望它。
 
-产物：**每个 Target 一个提交**，信息统一 `style: apply swift-format to <module>`。
+产物：**每个 Target 一个提交**，信息统一 `style: apply swift-format to TARGET_NAME`（把 `TARGET_NAME` 换成实际 Target 名）。
 
 > 策略 A 下不要手工再改格式；策略 B 下不要跑 `--in-place` —— 两种做法混用会来回覆盖。
 
 ### ④ 复检并记录前后基线
 
 ```bash
-swift format lint --recursive <dirs> 2>&1 | grep -E '\[[A-Za-z]+\]' | sort -u \
+swift format lint --recursive $DIRS 2>&1 | grep -E '\[[A-Za-z]+\]' | sort -u \
   | grep -oE '\[[A-Za-z]+\]' | sort | uniq -c | sort -rn
 swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -rn
 ```
@@ -153,7 +162,7 @@ swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -r
 > 这类规则依赖编译器索引，必须单独跑：
 >
 > ```bash
-> swiftlint analyze --compiler-log-path <build.log> --quiet
+> swiftlint analyze --compiler-log-path /path/to/build.log --quiet
 > ```
 >
 > 无法提供编译日志时需人工扫一眼 import 是否都有使用。**不要因为没有输出就认为这几类已达标。**
@@ -176,9 +185,9 @@ swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -r
 ### ⑦ 终检
 
 ```bash
-swift format lint --recursive --strict <dirs>   # 必须无输出
-swiftlint lint --strict --quiet                 # 必须无输出
-bash <skill-dir>/scripts/verify_citations.sh    # 若改动了规范正文的引文
+swift format lint --recursive --strict $DIRS     # 必须无输出
+swiftlint lint --strict --quiet                  # 必须无输出
+bash "$SKILL/scripts/verify_citations.sh"        # 若改动了规范正文的引文
 ```
 
 全干净才能进入报告。

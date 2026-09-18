@@ -16,8 +16,9 @@
 #   bash verify_consistency.sh --strict   # 已知待决项也记为 FAIL
 #   bash verify_consistency.sh -h
 #
-# 覆盖 9 节：1 验收条数 / 2 版本号 / 3 缩进与行长 / 4 规则分工 / 5 引文表 /
-# 6 frontmatter 与体量 / 7 已知待决漂移 / 8 可接受词表副本数 / 9 发布清单（插件·市场·许可）。
+# 覆盖 10 节：1 验收条数 / 2 版本号 / 3 缩进与行长 / 4 规则分工 / 5 引文表 /
+# 6 frontmatter 与体量 / 7 已知待决漂移 / 8 可接受词表副本数 / 9 发布清单（插件·市场·许可）/
+# 10 文档命令的可照抄性（代码块内未加引号的尖括号占位符）。
 #
 # 退出码：0 = 无 FAIL；1 = 存在 FAIL；2 = 用法错误
 
@@ -347,6 +348,55 @@ if [ -f "$P_LIC" ] && [ -f "$R_LIC" ]; then
 elif [ -f "$P_LIC" ]; then
   printf '  [note] 上层无 LICENSE（装进 plugins/cache 后属正常，跳过比对）\n'
 fi
+
+# ---------------------------------------------------------------------------
+section '10. 文档命令的可照抄性（判据：代码块内未加引号的尖括号占位符）'
+# 为什么需要它：zsh 会把**未加引号**的 `<` 当成输入重定向，读者照抄代码块里的命令
+# 会直接报 `parse error near '<'`。这类缺陷 swift-format 与 SwiftLint 都查不出。
+# 判据严格限定在「会被照抄的地方」，避免误报：
+#   - 只查围栏代码块（```）内的行，以及脚本文档头里以 `#   bash …` 开头的示例行
+#   - 已用引号包裹的（"$DIR" 或 "<路径>"）不会触发重定向，不算违规
+#   - <https://…>（Markdown 自动链接）、</…>（闭合标签）、<!--（注释）一律排除
+#   - references/official/ 是上游逐字原文，改写会破坏引文校验，整目录跳过
+#   - 正文散文里的示例写法不查：那是叙述，不是可粘贴的命令
+ph_in_line() { # $1 = 一行 → 打印其中未加引号的占位符（无则无输出）
+  printf '%s\n' "$1" \
+    | sed "s/'[^']*'//g" \
+    | sed 's/"[^"]*"//g' \
+    | grep -oE '<[^<>[:space:]]{1,24}>' \
+    | grep -vE '^<https?://|^</|^<!--' || true
+}
+PH_TMP="$(mktemp)"
+PH_HITS=0
+PH_TAB="$(printf '\t')"
+DOC_FILES="$SKILL"
+for f in "$SKILL_DIR"/references/*.md; do [ -f "$f" ] && DOC_FILES="$DOC_FILES $f"; done
+DOC_FILES="$DOC_FILES $SKILL_DIR/README.md $SKILL_DIR/../../README.md"
+for f in $DOC_FILES; do
+  [ -f "$f" ] || continue
+  case "$f" in *"/references/official/"*) continue ;; esac
+  awk '/^[[:space:]]*```/ { inb = !inb; next } inb { printf "%d\t%s\n", FNR, $0 }' "$f" > "$PH_TMP"
+  while IFS="$PH_TAB" read -r ln content; do
+    [ -n "${content:-}" ] || continue
+    h=$(ph_in_line "$content")
+    [ -z "${h:-}" ] && continue
+    bad "$(basename "$f"):${ln} 代码块内出现未加引号的占位符 ${h}（zsh 会当作输入重定向）"
+    PH_HITS=$((PH_HITS + 1))
+  done < "$PH_TMP"
+done
+# 脚本文档头里的示例命令会被 --help 原样打印，同样属于可照抄内容
+for f in "$SKILL_DIR"/scripts/*.sh; do
+  [ -f "$f" ] || continue
+  while IFS="$PH_TAB" read -r ln content; do
+    [ -n "${content:-}" ] || continue
+    h=$(ph_in_line "$content")
+    [ -z "${h:-}" ] && continue
+    bad "$(basename "$f"):${ln} 示例命令里出现未加引号的占位符 ${h}（会随 --help 打印给使用者）"
+    PH_HITS=$((PH_HITS + 1))
+  done < <(awk '/^#[[:space:]]*bash[[:space:]]/ { printf "%d\t%s\n", FNR, $0 }' "$f")
+done
+rm -f "$PH_TMP"
+[ "$PH_HITS" -eq 0 ] && ok "全部代码块与脚本示例命令均无未加引号的尖括号占位符"
 
 # ---------------------------------------------------------------------------
 printf '\n──────────── 汇总 ────────────\n'

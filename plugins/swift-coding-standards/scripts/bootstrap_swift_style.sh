@@ -26,7 +26,7 @@ usage() {
 用法: bootstrap_swift_style.sh [选项] [工程目录]
 
 选项:
-  --dirs "<目录...>"  Swift 源码目录，空格分隔（默认自动探测 Sources Tests，
+  --dirs "目录1 目录2"  Swift 源码目录，空格分隔（默认自动探测 Sources Tests，
                       若都不存在则用当前目录）
   --check             只检查并输出基线（默认行为）
   --fix               执行 swift format --in-place，会修改源码

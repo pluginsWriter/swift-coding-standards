@@ -20,17 +20,26 @@
 # 用法：
 #   bash verify_citations.sh            # 校验，输出逐条结果
 #   bash verify_citations.sh --quiet    # 只输出失败项与总结
+#   bash verify_citations.sh -h, --help # 显示本帮助
 #
-# 退出码：0 全部通过；1 有任一方向失败，或快照缺失
+# 退出码：0 全部通过；1 有任一方向失败，或快照缺失；2 用法错误
 
 set -uo pipefail
+
+usage() { sed -n '2,/^[[:space:]]*$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 SKILL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC="$SKILL_DIR/references/swift-coding-standards.md"
 OFFICIAL="$SKILL_DIR/references/official"
 
 QUIET=0
-[ "${1:-}" = "--quiet" ] && QUIET=1
+for arg in "$@"; do
+  case "$arg" in
+    --quiet)   QUIET=1 ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "未知选项: $arg" >&2; usage; exit 2 ;;
+  esac
+done
 
 if [ ! -f "$SPEC" ]; then
   echo "找不到规范正文：$SPEC" >&2

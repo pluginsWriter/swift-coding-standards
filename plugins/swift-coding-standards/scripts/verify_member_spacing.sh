@@ -29,11 +29,14 @@
 #     纯单行存储属性声明）。
 #
 # 用法：
-#   bash verify_member_spacing.sh <目录>...            # 只报告，不改文件（默认即只读）
-#   bash verify_member_spacing.sh <目录>... --check    # 同上，显式声明只读意图（适合写进 CI）
-#   bash verify_member_spacing.sh <目录>... --fix      # 插入缺失的空行（会改源码）
-#   bash verify_member_spacing.sh <目录>... --quiet    # 只输出汇总
-#   bash verify_member_spacing.sh -h
+#   bash verify_member_spacing.sh Sources Tests         # 只报告，不改文件（默认即只读）
+#   bash verify_member_spacing.sh Sources Tests --check # 同上，显式声明只读意图（适合写进 CI）
+#   bash verify_member_spacing.sh Sources Tests --fix   # 插入缺失的空行（会改源码）
+#   bash verify_member_spacing.sh Sources Tests --quiet # 只输出汇总
+#   bash verify_member_spacing.sh -h, --help
+#
+#   目录用空格分隔，可给多个；**至少需要一个，脚本不自动探测**。
+#   示例里的 Sources / Tests 按你的工程实际目录换掉即可。
 #
 # 退出码：0 = 无违规（或 --fix 已执行完毕）；1 = 存在违规；2 = 用法错误
 #
@@ -232,11 +235,9 @@ if [ "$FIX" -eq 1 ]; then
 fi
 
 if [ "$N_HITS" -gt 0 ]; then
-  cat <<'EOF'
-
-整改：这是可机械修复的纯格式项，但仍属「格式提交」，不得与逻辑改动混在一起。
-  bash <本脚本> <目录>... --fix
-EOF
+  echo
+  echo "整改：这是可机械修复的纯格式项，但仍属「格式提交」，不得与逻辑改动混在一起。"
+  echo "  bash \"$0\" ${DIRS# } --fix"
   exit 1
 fi
 echo "结论：未发现缺空行。"

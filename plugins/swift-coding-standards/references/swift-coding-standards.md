@@ -4,7 +4,7 @@
 
 | 项目    | 内容                                                                                                   |
 | ----- | ---------------------------------------------------------------------------------------------------- |
-| 版本    | v1.5.7                                                                                                 |
+| 版本    | v1.5.8                                                                                                 |
 | 适用范围  | 所有 Swift 工程：Swift Package、App、命令行工具、C/Objective-C 互操作层                                               |
 | 配套模板  | `assets/swift-format.json`、`assets/swiftlint.yml`                                                    |
 | 自动化脚本 | `scripts/bootstrap_swift_style.sh`、`scripts/remediate.sh`、`scripts/verify_member_spacing.sh`          |
@@ -86,11 +86,11 @@ Swift 官方发布了**命名**标准（S1）和**格式化器**（S3），但�
 
 ```bash
 # 集成后自检（纯离线，秒级）
-bash <skill-dir>/scripts/verify_citations.sh
-bash <skill-dir>/scripts/fetch_official_sources.sh --status
+bash "$SKILL/scripts/verify_citations.sh"
+bash "$SKILL/scripts/fetch_official_sources.sh" --status
 
 # 维护者巡检（需要网络，只报告、不修改）
-bash <skill-dir>/scripts/fetch_official_sources.sh --freshness
+bash "$SKILL/scripts/fetch_official_sources.sh" --freshness
 ```
 
 **引文纪律**：正文中凡以引号或斜体标注为原文的句子，必须能在 `references/official/` 的快照中逐字检索到，由 `verify_citations.sh` 强制检查。**转述与改写一律不加引号** —— 把改写句伪装成原文是最难被发现的规范缺陷。来源明细与许可见 `references/official/SOURCES.md`。
@@ -398,8 +398,8 @@ if queues[key] == nil {
 - **检测（本规范唯一一条工具查不出的格式规则，必须单独跑）**：实测 swift-format 6.3.3 的规则集中没有「成员间空行」这一项（配置项 `maximumBlankLines = 1` 管的是**上限**即「不许连续两个空行」，不是下限），SwiftLint 0.63 同样没有对应规则。因此用本 skill 自带脚本：
 
   ```bash
-  bash <skill-dir>/scripts/verify_member_spacing.sh <目录>...          # 只报告（只读）
-  bash <skill-dir>/scripts/verify_member_spacing.sh <目录>... --fix    # 插入缺失的空行
+  bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS          # 只报告（只读）
+  bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS --fix    # 插入缺失的空行
   ```
 
   判据是「上一个代码行是独立的一行 `}`、与本声明同缩进、且中间没有空行」；只覆盖**有花括号体的成员**，按上面的除外条款**主动跳过**单行存储属性与 enum case，避免误报合法的属性分组。**已知漏检**：成员结尾不是 `}` 时查不到（如多行数组字面量、`#endif` 结尾）、缩进用 Tab 时可能漏（4.5 本就禁 Tab）。
@@ -636,7 +636,7 @@ swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -r
 
 **坑二：它会重复输出同一条违规，实测约 3.5 倍。** 某工程 `Sources` 原始输出 1797 行，去重后仅 513 条，而该目录真实分号数为 519 —— 去重后的数才接近真相。**任何基线都必须先按 `文件:行:列:规则` 去重。**
 
-> 直接使用脚本可省掉这些细节：`bash <skill-dir>/scripts/remediate.sh <工程目录> --check`（已内置去重，并按规则输出基线、报告与人工待办清单）。
+> 直接使用脚本可省掉这些细节：`bash "$SKILL/scripts/remediate.sh" "$PROJ" --check`（已内置去重，并按规则输出基线、报告与人工待办清单）。
 
 ### 8.2 分批策略
 
@@ -723,3 +723,4 @@ swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -r
 | v1.5.5 | 2026-09-11 | **「成员之间空 1 行」从纸面规则变成可机器检出**（起因：用户报「有的函数和函数之间缺少间隔」）。查证发现这条规则此前**三重失效**：① 正文 4.7 早已定为 MUST，但**没有任何工具能查** —— 实测 swift-format 6.3.3 的规则集中没有「成员间空行」项（`maximumBlankLines = 1` 管的是上限即「不许连续两个空行」，不是下限；把两个相邻 `func` 喂给 `swift format`，输出与输入一致），SwiftLint 0.63 同样无对应规则；② 4.0 的表格把「空行位置」整体列入「MUST 之外 → 保留人工排版」，与 4.7 直接矛盾，照哪条读都能自洽，所以这类问题一直没被改；③ 出处没挂全 —— S5 §Vertical Whitespace 的两个除外条款（单行存储属性之间、紧密相关属性之间可空行）在 4.7 里被漏掉，照原文执行会误伤合法的属性分组。**改动**：① 新增 `scripts/verify_member_spacing.sh`（`--check` 只读 / `--fix` 只插空行），把它变成机器可检出；判据是「上一个代码行是独立的一行 `}`、与本声明同缩进、且中间无空行」，按 S5 除外条款**主动跳过**单行存储属性与 enum case，只查**有花括号体的成员**（方法 / 初始化器 / 计算属性 / 嵌套类型，这些在 S5 里没有例外），已知漏检边界如实写在脚本头部。② 正文 4.0 把「空行位置」拆分为「成员之间的分隔空行（MUST）」与「语句组内部是否空行（自由）」，消除矛盾；4.7 补 S5 原文出处、两个除外条款、文档注释的插入位置，并标明这是**唯一一条 swift-format / SwiftLint 都查不出的格式规则**。③ 缺陷全景表新增第 17 类（实测：Sources 374 处 / 49 文件、Tests 329 处 / 42 文件，共 202 + 140 个文件）。④ 顺带修正既有计数脱节：正文原写「表里『能机器检出』的 12 类」，而表里实际只有 11 类标「是」（12 是缺陷目录第 1 节的行数，含表格标为「部分」的第 9 类）—— 改为不写该类数字、只指向缺陷表，不再养第二份副本。⑤ `--fix` 经 202 个文件逐条比对确认**非空行零改动**、且幂等（第二次运行报告 0 个文件被改）；单进程重写后扫描耗时由 45 秒降到 0.7 秒。⑥ `--check` 补为**显式只读别名** —— 此前 SKILL.md 与本节都把只读模式写作 `--check`，但脚本只认「裸目录 / `--quiet` / `--fix`」，照文档敲命令会「未知选项」退出 2；现补上别名使文档与实现一致（纯增补，不改变既有行为），并顺带修掉 `usage()` 的硬编码行号区间（原 `sed -n '2,44p'` 会把 `set -uo pipefail` 与 usage() 定义本身一并打进帮助，改用「打印到首个空行」的动态区间，头部再增删行也不会脱节） |
 | v1.5.6 | 2026-09-11 | **补齐「在制品已在树上时如何回退纯格式改动」的流程与一个静默失败陷阱**（起因：真实工程按本规范整改成员空行时，703 处补丁落在已有 325 个在制品文件的树上，规范 8.2 第 1 条只规定了「先提交在制品再重排」这一种顺序，未覆盖顺序已颠倒的补救）。**改动**：`remediation-playbook.md` §2 新增「第 ③ 步的补救」小节 —— 用 `git diff` 把纯格式增量单独存成补丁（存仓库外，勿留 `/tmp`、`/var/folders` 这类会被系统清理的位置）、提交逻辑时 `patch -p1 -R` 撤下再 `patch -p1` 放回、事后用 `--check` 复核；并明确补丁的两条验收（`^+` 行全为空行、`git apply --check -R` 能精确还原）。同节记录一个**实测的静默失败**：仓库根在代码目录上一级时（仓库根 `dock-center-macos`、代码在 `dock-center-macos/UGDockNative`），补丁路径相对代码目录生成而 `git apply` 按仓库根解析，路径对不上只打印 `Skipped patch` 并**返回 0、文件不变**，形似成功 —— 可靠写法为代码目录内 `patch -p1 [-R]`，或仓库根 `git apply [-R] --directory=<代码目录> -p1`，执行后必须用 `git diff --stat` 确认（该陷阱在本次验证中使一次「反向试放成功」的结论失效，故要求以副作用核验而非退出码核验） |
 | v1.5.7 | 2026-09-18 | **发布为插件形态 + 发布清单自检**（起因：本规范要以插件形式对外分发，需要一个「装一下就能用」的入口，而不是让每个人各自配软链）。① 仓库改为「市场根 + 插件子目录」形态：新增 `.codebuddy-plugin/marketplace.json`，内容主体移入 `plugins/swift-coding-standards/`，`SKILL.md` 位于插件根 —— 加载器 `SkillExtensionLoader` 会单独解析 `<插件根>/SKILL.md`，因此**不产生第二份内容副本**（迁移用 `git mv`，21 个文件全部被识别为纯重命名，另有内容哈希清单逐条比对佐证零改动）。② `verify_consistency.sh` 新增第 9 节「发布清单」：`plugin.json` 的 `name`/`version`/`license` 必须与 `SKILL.md` 及正文版本表一致，市场条目的 `version` 与 `source` 必须与插件一致，插件根 `LICENSE` 必须与仓库根 `LICENSE` 逐字节相同 —— 版本号由此从「两处出处」变成「两处出处 + 机器校验」；安装进插件缓存后上层不再是仓库，相关三处检查转为 `[note]` 跳过而非误报。③ 新增 `README.md`（仓库级 + 插件级）、`LICENSE`（MIT，两处同文）、`THIRD-PARTY-NOTICES.md` 与 `LICENSES/Apache-2.0.txt`：`references/official/` 内是 Apache-2.0（S1/S3/S4/S5）与 CC BY 4.0（S6）的**逐字原文**，对外再分发**必须**随附 Apache-2.0 全文（其第 4(a) 条）并保留署名，此前只有来源登记表、没有许可全文。④ 修 `-h` 的范围输出为动态区间（原 `sed -n '2,19p'` 是硬编码行号，头部一增删行就脱节 —— 与 v1.5.5 在 `verify_member_spacing.sh` 上修过的是同一类缺陷）；汇总提示里指向仓库外 `docs/skill-review/` 的悬空路径改为「定义见本脚本第 7 节」（附录 C 中的历史引用按惯例保留原文不动）。⑤ `SOURCES.md` 示例命令里的 `SKILL_DIR=<skill-dir>` 改为真实路径示例：尖括号会被 zsh 当作输入重定向，照抄即报 `parse error`。**已知未修（待专项处理）**：同类尖括号占位符在 `SKILL.md` 与其余 references 中另有 20 处（`<skill-dir>` / `<工程目录>` / `<dirs>` 等），属全库改为「先定义变量再引用」的约定变更，不与本次发布混作一个提交 |
+| v1.5.8 | 2026-09-18 | **命令一律改为「先定义变量再引用」，并把「可照抄性」变成机器校验**（起因：用户指出公开仓库的文档里还留着本机绝对路径，别人照抄必然失败；随后复查又发现多条示例命令本身照抄即报错）。① `verify_consistency.sh` 新增第 10 节：机器检查**围栏代码块内**与**脚本文档头 `# bash …` 示例行内**是否残留**未加引号的**尖括号占位符。判据严格限定在「会被照抄的位置」，以免制造误报 —— 已用引号包裹的（`"$DIR"` 或 `"<路径>"`）不会触发重定向、不算违规；`<https://…>`（Markdown 自动链接）、`</…>`（闭合标签）、`<!--`（注释）一律排除；`references/official/` 是上游逐字原文、改写会破坏引文校验，整目录跳过；正文散文里的示例写法不查（那是叙述，不是可粘贴的命令）。该节经**四组反向测试**证明真会 FAIL：代码块内注入未加引号占位符 → FAIL 1；同一处加引号 → 回到 0（证明判定的是「未加引号」而不是「一律禁尖括号」）；脚本示例注注入 → FAIL 1；注入 `<https://…>` 与 `</b>` → 无误报。② 清掉全部可照抄位置的尖括号占位符（`SKILL.md`、`remediation-playbook.md`、`defect-catalog.md`、正文），统一改为「先定义变量再引用」：`SKILL="…"` / `PROJ="…"` / `DIRS="Sources Tests"`，路径变量一律加引号，列表变量**有意不加引号**（要按空格拆成多个目录参数），并在 `SKILL.md` 新增「路径与变量约定」一节把这条写法讲清楚。③ 补两个脚本的参数处理，消除两处静默失败：`fetch_official_sources.sh` 此前是六个脚本里**唯一不认 `--help`** 的（当未知参数退出 2，而文档正指着它），现补 `-h`/`--help` 并让未知参数打印帮助；`verify_citations.sh` 此前**静默忽略所有参数**（拼错的开关被当无事发生、仍退出 0），现改为拒绝未知选项并退出 2。④ `verify_member_spacing.sh` 的整改提示由 `bash <本脚本> <目录>... --fix` 改为打印**可直接照抄的真命令**（`bash "$0" <实际目录> --fix`），并实跑验证「照抄执行 → 违规数归零」；其用法块同时改用 `Sources Tests` 这种真实目录名，并写明「至少需要一个目录参数、脚本不自动探测」。⑤ 两份 README 精简：删除插件 README 的「目录结构」一节与仓库 README 的「仓库结构」一节（对读者是噪音，且全库无任何位置引用它们，删除不产生悬空引用）；「其它 agent」一节由本机绝对路径改为 clone 后自定位（`cd` 后 `ln -sfn "$PWD"`）。⑥ 更正 opencode 的说明并删除本机那条冗余软链：实测 opencode **会自动加载** `~/.agents/skills` 与 `~/.claude/skills`（证据为其二进制内嵌的配置文档原文，以及 `opencode debug skill` 实测输出中来自这两个目录的 43 + 16 条），因此不需要为它单独建链；删除 `~/.config/opencode/skills/swift-coding-standards` 后复测，opencode 仍经 `~/.agents/skills/…` 发现本 skill。⑦ 顺带记录一处**测量法**教训：`opencode debug skill` 的输出一旦经管道（`| grep`、`| head`）会因 SIGPIPE 被随机截断 —— 同一条件连测三次得到 0/1/0 的矛盾结果，一度被误读成「删软链导致 opencode 看不到 skill」；改为重定向到文件后再分析即稳定可复现（三次均 290 行 / 48 个 skill）。这与 v1.5.6 记下的「测退出码不要接管道」同族：**先确认测量方法成立，再解读结论** |
