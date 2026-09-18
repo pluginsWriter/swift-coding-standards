@@ -206,5 +206,5 @@ bash <skill-dir>/scripts/bootstrap_swift_style.sh <工程目录> --check
 - `scripts/remediate.sh` —— **完整整改管线**：基线 → 机械修复 → 复检 → 待办清单 → 报告（`--check` / `--fix`）
 - `scripts/fetch_official_sources.sh` —— 快照巡检与刷新（`--status` 离线；`--freshness` / `--check` / 刷新需联网）
 - `scripts/verify_citations.sh` —— 离线校验正文引文与快照是否逐字一致（含反向启发扫描：正文斜体英文句必须有快照出处）
-- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额；期望值一律从单一权威来源推导，不写第二份硬编码
+- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额、发布清单（插件·市场·许可）；期望值一律从单一权威来源推导，不写第二份硬编码
 - `scripts/verify_member_spacing.sh` —— **成员间空行检查**：swift-format 与 SwiftLint 都查不出这条规则，只能靠它（`--check` 只读 / `--fix` 只插空行）；判据与已知漏检边界写在脚本头部

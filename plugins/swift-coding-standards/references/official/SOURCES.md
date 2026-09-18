@@ -65,7 +65,7 @@ S6 是 **LinkedIn 的 Swift Style Guide**（2016 年起维护，2024-12 起对�
 ## 使用方式
 
 ```bash
-SKILL_DIR=<skill-dir>   # 本 skill 所在目录；在别的机器/别的 agent 上路径不同，不要写死
+SKILL_DIR="$HOME/.workbuddy/skills/swift-coding-standards"   # 本 skill 所在目录；在别的机器/别的 agent 上路径不同，按实际位置改
 
 # —— 集成后自检（纯离线，不需要网络）——
 bash "$SKILL_DIR/scripts/verify_citations.sh"                   # 双向校验引文与快照
@@ -111,3 +111,5 @@ bash "$SKILL_DIR/scripts/fetch_official_sources.sh"
 | linkedin/swift-style-guide（S6） | **CC BY 4.0**（Ⓒ LinkedIn Corporation 2016） | **必须保留署名与许可** —— 已内置于快照顶部标注头，抓取脚本会自动维护，请勿手工删除 |
 
 重新分发本 skill 时，请保留本文件与各快照文件顶部的来源标注。
+完整的第三方署名、各来源许可与再分发条件另见插件根目录的 `THIRD-PARTY-NOTICES.md`，
+其中随附 Apache License 2.0 全文（`LICENSES/Apache-2.0.txt`）以满足其第 4(a) 条要求。

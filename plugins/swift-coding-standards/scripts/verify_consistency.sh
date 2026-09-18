@@ -16,9 +16,14 @@
 #   bash verify_consistency.sh --strict   # 已知待决项也记为 FAIL
 #   bash verify_consistency.sh -h
 #
+# 覆盖 9 节：1 验收条数 / 2 版本号 / 3 缩进与行长 / 4 规则分工 / 5 引文表 /
+# 6 frontmatter 与体量 / 7 已知待决漂移 / 8 可接受词表副本数 / 9 发布清单（插件·市场·许可）。
+#
 # 退出码：0 = 无 FAIL；1 = 存在 FAIL；2 = 用法错误
 
 set -uo pipefail
+
+usage() { sed -n '2,/^[[:space:]]*$/p' "$0" | sed 's/^# \{0,1\}//'; }
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -26,9 +31,9 @@ SKILL_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 STRICT=0
 case "${1:-}" in
   --strict) STRICT=1 ;;
-  -h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  -h|--help) usage; exit 0 ;;
   "") ;;
-  *) echo "未知选项: $1" >&2; exit 2 ;;
+  *) echo "未知选项: $1" >&2; usage >&2; exit 2 ;;
 esac
 
 FAILS=0
@@ -271,6 +276,79 @@ if [ "$CNT" -le 2 ]; then ok "可接受词表副本收敛（${COPIES}）"
 else warn "可接受词表出现在 $CNT 个文件：$COPIES —— 权威应为 naming-antipatterns.md，其余宜改为引用（drain 漂移即源于此）"; fi
 
 # ---------------------------------------------------------------------------
+section '9. 发布清单（权威来源：正文版本表 + 插件根许可）'
+PLUGIN_JSON="$SKILL_DIR/.codebuddy-plugin/plugin.json"
+R_MK="$SKILL_DIR/../../.codebuddy-plugin/marketplace.json"
+R_LIC="$SKILL_DIR/../../LICENSE"
+P_LIC="$SKILL_DIR/LICENSE"
+
+# 取 JSON 里第一个该键的字符串值。不用 jq：它并非 macOS 预装，会引入外部依赖。
+json_str() {
+  grep -oE "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$1" 2>/dev/null \
+    | head -1 | sed 's/.*:[[:space:]]*"\(.*\)"$/\1/'
+}
+
+if [ ! -f "$PLUGIN_JSON" ]; then
+  printf '  [note] 未找到 .codebuddy-plugin/plugin.json（尚未做成插件形态，跳过）\n'
+else
+  P_NAME=$(json_str "$PLUGIN_JSON" name)
+  P_VER=$(json_str "$PLUGIN_JSON" version)
+  P_LIC_ID=$(json_str "$PLUGIN_JSON" license)
+  if [ "${P_NAME}" = "$NAME" ]; then
+    ok "plugin.json 的 name「${P_NAME}」与 SKILL.md 一致"
+  else
+    bad "plugin.json 的 name「${P_NAME}」≠ SKILL.md 的「${NAME}」（市场显示名会与 skill 名不符）"
+  fi
+  WANT_VER=$(printf '%s' "$V_HEAD" | sed 's/^v//')
+  if [ -z "${P_VER}" ]; then
+    bad "plugin.json 未声明 version（装到插件缓存时会落到 unknown 目录）"
+  elif [ "${P_VER}" = "$WANT_VER" ]; then
+    ok "plugin.json version ${P_VER} == 正文版本表 ${V_HEAD}"
+  else
+    bad "plugin.json version「${P_VER}」≠ 正文版本表「${V_HEAD}」（改版本时两处都要改）"
+  fi
+  if [ -z "${P_LIC_ID}" ]; then
+    bad "plugin.json 未声明 license（对外分发必须有）"
+  else
+    ok "plugin.json license = ${P_LIC_ID}"
+  fi
+
+  if [ -f "$R_MK" ]; then
+    MK_VER=$(json_str "$R_MK" version)
+    MK_SRC=$(json_str "$R_MK" source)
+    WANT_SRC="./plugins/$(basename "$SKILL_DIR")"
+    if [ "${MK_VER}" = "${P_VER}" ]; then
+      ok "marketplace.json 条目 version ${MK_VER} == plugin.json"
+    else
+      bad "marketplace.json 条目 version「${MK_VER}」≠ plugin.json「${P_VER}」"
+    fi
+    if [ "${MK_SRC}" = "$WANT_SRC" ]; then
+      ok "marketplace.json 的 source 指向 ${WANT_SRC}"
+    else
+      bad "marketplace.json 的 source「${MK_SRC}」≠ 期望的「${WANT_SRC}」"
+    fi
+  else
+    printf '  [note] 上层无 market.json（装进 plugins/cache 后属正常，跳过市场清单校验）\n'
+  fi
+fi
+
+# 许可：插件根那份随包分发（装到哪带到哪），仓库根那份供托管平台识别，两者必须同文
+if [ -f "$P_LIC" ]; then
+  ok "插件根 LICENSE 存在（随包分发）"
+else
+  warn "插件根缺 LICENSE —— 插件安装到缓存后不携带许可文本"
+fi
+if [ -f "$P_LIC" ] && [ -f "$R_LIC" ]; then
+  if cmp -s "$P_LIC" "$R_LIC"; then
+    ok "仓库根 LICENSE 与插件根 LICENSE 逐字节相同"
+  else
+    bad "仓库根 LICENSE 与插件根 LICENSE 不一致（两份许可文本已漂移）"
+  fi
+elif [ -f "$P_LIC" ]; then
+  printf '  [note] 上层无 LICENSE（装进 plugins/cache 后属正常，跳过比对）\n'
+fi
+
+# ---------------------------------------------------------------------------
 printf '\n──────────── 汇总 ────────────\n'
 printf 'FAIL: %s    WARN: %s\n' "$FAILS" "$WARNS"
 if [ "$FAILS" -gt 0 ]; then
@@ -278,5 +356,5 @@ if [ "$FAILS" -gt 0 ]; then
   exit 1
 fi
 printf '结论：副本一致。\n'
-[ "$WARNS" -gt 0 ] && printf '（%s 条 WARN 为已知待决项，见 references/../docs/skill-review/ 复盘报告）\n' "$WARNS"
+[ "$WARNS" -gt 0 ] && printf '（%s 条 WARN 为已知待决项，定义见本脚本第 7 节）\n' "$WARNS"
 exit 0
