@@ -19,31 +19,33 @@
 
 ## 安装
 
-### WorkBuddy（桌面端）
+### WorkBuddy（本机 skill 目录，实测有效）
 
-1. 侧边栏进入**插件管理** → **添加市场**。
-2. 在「市场来源」里填 `pluginsWriter/swift-coding-standards`，提交。
-3. 在市场里找到 **swift-coding-standards**，点**安装**，选择作用域（装给你自己选 user，只给本仓库选 project）。
-4. 装完确认列表中出现该插件并处于启用状态。
+WorkBuddy 桌面端的**专家 / 技能 / 连接器**搜索的是官方市场内容，第三方 GitHub 仓库不在其中，也**没有「添加市场」入口**（2026-10-20 实测确认；早前文档写的「插件管理 → 添加市场」步骤不成立，已删除）。正确方式与其它 agent 相同 —— clone 后把插件目录链进 WorkBuddy 的 skill 目录（实测它会跟随软链）：
 
-### WorkBuddy（终端 TUI）
+```sh
+git clone https://github.com/pluginsWriter/swift-coding-standards
+cd swift-coding-standards/plugins/swift-coding-standards
+
+mkdir -p ~/.workbuddy/skills
+ln -sfn "$PWD" ~/.workbuddy/skills/swift-coding-standards
+```
+
+装完**重启 WorkBuddy**（技能清单在会话启动时加载），确认可用技能里出现 `swift-coding-standards`。
+
+### CodeBuddy CLI（TUI）
+
+若你使用的是带 `/plugin` 命令的终端版（CodeBuddy CLI）：
 
 ```
 /plugin marketplace add pluginsWriter/swift-coding-standards
 /plugin install swift-coding-standards@swift-standards
-/reload-plugins
 ```
 
 （`/plugin validate` 是可选命令，校验本地的插件或市场清单；只在你已 clone 本仓库、且当前目录就是
 仓库根时才用得上，例如 `/plugin validate ./plugins/swift-coding-standards`。）
 
-装完**不要只看命令回显**，去确认快照真的落地了：
-
-```sh
-ls ~/.workbuddy/plugins/cache/swift-standards/swift-coding-standards/
-```
-
-应当能看到以版本号命名的目录，且里面有 `SKILL.md`。
+装完**不要只看命令回显**，确认插件列表中出现该插件并处于启用状态。
 
 ### 其它 agent（Codex / Claude Code / opencode）
 
