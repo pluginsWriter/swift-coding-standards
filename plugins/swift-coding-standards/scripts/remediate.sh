@@ -327,7 +327,7 @@ LINT_DIST="$(printf '%s\n' "$LINT_RAW" | lint_dist)"
   echo "生成时间：$(date '+%Y-%m-%d %H:%M:%S %Z')"
   echo "工程目录：\`$PROJECT_DIR\`"
   echo "检查目录：\`$DIRS\`"
-  echo "执行模式：$( [ "$MODE" = "fix" ] && echo '已执行机械修复（--fix）' || echo '只读检查（--check）' )"
+  echo "执行模式：$( [ "$MODE" = "fix" ] && echo '已执行机械修复（--fix）' || echo '只读检查（--check，不修源码；缺配置仍会生成、报告仍会写出）' )"
   echo "配置模板：$( if [ -n "$CONFIG_BOOTSTRAPPED" ]; then echo "初始缺失，已自动生成 ${CONFIG_BOOTSTRAPPED}（included 取实际检查目录）"; elif [ -n "$CONFIG_MISSING" ]; then echo '**缺失**（--allow-missing-config 放行，下述基线与违规数不可信）'; else echo '已就位（`.swift-format` + `.swiftlint.yml`）'; fi )"
   echo
   echo "> 完整验收标准见 \`references/remediation-playbook.md\` 第 1 节（9 条）。"

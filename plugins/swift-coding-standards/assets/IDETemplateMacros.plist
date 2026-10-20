@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  IDETemplateMacros.plist —— Xcode 新建 Swift 文件的文件头模板（正文 4.10）
+  落点三选一：
+    1. 全局：~/Library/Developer/Xcode/UserData/IDETemplateMacros.plist
+       （影响所有工程；SwiftPM 包没有 .xcodeproj，通常只能用这档）
+    2. 单工程：<工程名>.xcodeproj/xcshareddata/IDETemplateMacros.plist
+  配置后必须实测一次：新建一个 Swift 文件，对照正文 4.10 判据逐行核对
+  （___DATE___ 的渲染格式随环境而定，若不是 yyyy/M/d 先调模板再投入使用）。
+  版权主体「UGREEN」按项目替换；Xcode 宏一览见 Xcode Help「Text macros」。
+-->
+<plist version="1.0">
+<dict>
+	<key>FILEHEADER</key>
+	<string>
+//  ___FILENAME___
+//  ___PROJECTNAME___
+//
+//  Created by ___FULLUSERNAME___ on ___DATE___.
+//  Copyright © ___YEAR___ UGREEN. All rights reserved.
+//
+//  文件作用：TODO（需人工补写）</string>
+</dict>
+</plist>

@@ -14,7 +14,7 @@
 - **离线自足**：权威来源原文快照内置，引用校验不需要联网。
 - **格式与逻辑分离**：工具格式化只做 lint 检查，禁止自动改写源码；人工排版与工具排版同等有效。
 
-覆盖命名、格式、注释与文档、语言与并发、常量与魔法值、体量上限、**17 类缺陷检测**、
+覆盖命名、格式、注释与文档、语言与并发、常量与魔法值、体量上限、**18 类缺陷检测**（含文件头检查）、
 基线采集与五批迁移，以及既有代码的**完整整改流程**（格式化 + 命名 + 文档 + 语言约束全部到位才算完成）。
 
 ## 安装
@@ -82,7 +82,11 @@ bash scripts/verify_citations.sh              # 引文与快照双向校验（�
 ```sh
 PROJ=/path/to/your-swift-project
 bash scripts/verify_member_spacing.sh "$PROJ" --check   # 成员之间缺空行（只读）
+bash scripts/verify_file_header.sh "$PROJ" --check      # 文件头（只读；--copyright "主体" 严校版权行）
 ```
+
+Xcode 新建文件想自动带标准文件头，把 `assets/IDETemplateMacros.plist` 复制到
+`~/Library/Developer/Xcode/UserData/`（或单工程的 `.xcodeproj/xcshareddata/`），配置后新建文件实测一次。
 
 整改存量工程见 `references/remediation-playbook.md`。权威来源快照的状态查看与刷新见
 `scripts/fetch_official_sources.sh` 的头部注释（`--status` 离线看状态、`--freshness` 联网比对上游、

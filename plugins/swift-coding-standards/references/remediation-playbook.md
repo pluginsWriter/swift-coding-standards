@@ -63,7 +63,7 @@
 
 无论哪种策略，四类必改项都必须修：**分号、块内多语句压行、`defer{`、关键字与花括号之间缺空格**。需要长期豁免的个别位置加 `// swift-format-ignore`。
 
-> **还有一类不在这四类里，但漏了它就是假达标**：成员之间缺分隔空行（规范 4.7，缺陷目录第 17 类）。**swift-format 与 SwiftLint 都没有这条规则**，`swift format lint` 永远不报，只能用 `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS` 检出（`--fix` 可插空行）。「格式零违规」的结论必须包含这一条的数字。
+> **还有两类不在这四类里，但漏了它们就是假达标**：① 成员之间缺分隔空行（规范 4.7，缺陷目录第 17 类）—— **swift-format 与 SwiftLint 都没有这条规则**，`swift format lint` 永远不报，只能用 `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS` 检出（`--fix` 可插空行）；② 文件头缺失或不合规（规范 4.10，缺陷目录第 18 类）—— 同样两类工具都查不出，用 `bash "$SKILL/scripts/verify_file_header.sh" $DIRS` 检出（`--fix` 只补整块缺失的结构，作用行留 TODO 需人工补写）。「格式零违规」的结论必须包含这两条的数字。
 
 ### 第 ③ 步的补救：机械修复已经跑过、而树上有在制品（规范 8.2 第 1 条）
 

@@ -4,10 +4,10 @@
 
 | 项目    | 内容                                                                                                   |
 | ----- | ---------------------------------------------------------------------------------------------------- |
-| 版本    | v1.5.8                                                                                                 |
+| 版本    | v1.6.0                                                                                                 |
 | 适用范围  | 所有 Swift 工程：Swift Package、App、命令行工具、C/Objective-C 互操作层                                               |
-| 配套模板  | `assets/swift-format.json`、`assets/swiftlint.yml`                                                    |
-| 自动化脚本 | `scripts/bootstrap_swift_style.sh`、`scripts/remediate.sh`、`scripts/verify_member_spacing.sh`          |
+| 配套模板  | `assets/swift-format.json`、`assets/swiftlint.yml`、`assets/IDETemplateMacros.plist`（文件头模板）             |
+| 自动化脚本 | `scripts/bootstrap_swift_style.sh`、`scripts/remediate.sh`、`scripts/verify_member_spacing.sh`、`scripts/verify_file_header.sh` |
 | 配套文档  | `references/comment-standards.md`、`references/defect-catalog.md`、`references/naming-antipatterns.md` |
 
 ---
@@ -15,7 +15,7 @@
 
 ## 0. 这份规范解决什么问题
 
-先看**缺陷全景，**&#x4E0B;表每一行都在实际工程（`UGDockNative`，188 个源文件 / 17K 行）中被检出并计量过，检测命令见 `references/defect-catalog.md`。第 17 类为 2026-09-11 新增，实测值为当日在 202 个源文件上重扫所得。
+先看**缺陷全景，**&#x4E0B;表每一行都在实际工程（`UGDockNative`，188 个源文件 / 17K 行）中被检出并计量过，检测命令见 `references/defect-catalog.md`。第 17 类为 2026-09-11 新增，实测值为当日在 202 个源文件上重扫所得；第 18 类为 2026-10-20 新增，实测值为当日在 468 个源文件上首扫所得（381 处 / 255 文件，其中 234 处整块缺失）。
 
 | #  | 缺陷类别       | 典型表现                                        | 能否机器检出 | 该工程实测                |
 | -- | ---------- | ------------------------------------------- | ------ | -------------------- |
@@ -36,13 +36,14 @@
 | 15 | 测试断言过弱     | 断言缺失败说明、用通用断言代替专用断言                         | 是      | 49 + 26              |
 | 16 | 行长失控       | 最长 315 列                                    | 是      | 959                  |
 | 17 | 成员间缺分隔空行   | `}` 与下一个成员声明之间没有空行，代码挤成一块                      | 是（非 swift-format / SwiftLint） | 374（Sources）/ 329（Tests） |
+| 18 | 文件头缺失或不合规  | 无头、文件名行与磁盘不符、旧式头部缺「文件作用」行                      | 是（非 swift-format / SwiftLint） | 381 处 / 255 文件（468 扫描）   |
 
 本规范给出**可判定、可自动执行**的统一答案：什么必须多行、什么允许单行、命名该用什么词、体量上限是多少。
 
 两条贯穿全文的原则：
 
 - **判据优先于清单。** 规则尽量写成「怎么判断」而不是「禁用哪些词」，因为清单永远列不全，且会误伤可读写法。
-- **机器能查的不要靠人自觉。** 缺陷表标为「能机器检出」的类别都配了自动检查命令（见 `references/defect-catalog.md` 第 1 节）：格式与语义分别交给 `swift-format` / `SwiftLint`。唯一的例外是第 17 类**成员间缺分隔空行** —— 这两类工具都没有该规则，由 `scripts/verify_member_spacing.sh` 承担（见 4.7）。
+- **机器能查的不要靠人自觉。** 缺陷表标为「能机器检出」的类别都配了自动检查命令（见 `references/defect-catalog.md` 第 1 节）：格式与语义分别交给 `swift-format` / `SwiftLint`。两个例外是第 17 类**成员间缺分隔空行**与第 18 类**文件头缺失或不符合 4.10** —— 这两类工具都没有对应规则，分别由 `scripts/verify_member_spacing.sh`（见 4.7）与 `scripts/verify_file_header.sh`（见 4.10）承担。
 
 > 此处刻意**不写「N 类交给工具」这类数字**：它曾与实际条目数脱节（正文写 12 类、表格里其实 11 类标「是」），而按行数一数就知道的结论不值得再维护一份副本。
 
@@ -414,6 +415,45 @@ if queues[key] == nil {
 - **数字字面量**：超过 4 位的十进制加下划线分组（`10_000`）；十六进制 `0x1F_4A`。
 - **注释符号**：只用 `//` 与 `///`，禁止 `/* */` 块注释（`NoBlockComments`）。
 
+### 4.10 文件头（MUST）
+
+每个 Swift 源文件必须以标准文件头开头（2026-10-20 新增）。八行三段：**定位块**（分隔行、文件名、项目名）、**创作块**（Created by、Copyright）、**作用块**（分隔行、文件作用）。真实示例：
+
+```swift
+//
+//  ApplicationCoreRuntimeAccessing.swift
+//  UGDockNative
+//
+//  Created by 潘燕彬 on 2026/9/4.
+//  Copyright © 2026 UGREEN. All rights reserved.
+//
+//  文件作用：定义 Application 使用 Core Runtime 时可替换且不暴露完整 Resources 的 actor Seam。
+```
+
+**判据是查结构不查值** —— 这是「按设备用户名默认生成」与「支持手动修改」能并存的关键：
+
+- **创建者与日期是创建时的事实，事后手动修改不算违规**：只查「`Created by … on …`」结构存在、日期为 `yyyy/M/d` 格式（允许不补零）。不校验创建者与当前设备用户名是否一致；**日期只查格式不查数值** —— 文件 mtime 会变，拿 mtime 对日期必然误报。
+- **文件名行必须与磁盘文件名一致**（`//` 后两个空格）：文件改名后头部要跟着改，这条是唯一查「值」的项。
+- **版权主体默认不校验**：通用规范只查「`Copyright © yyyy … All rights reserved.`」结构；具体主体（如 UGREEN）是项目级信息，不写死在本规范。需要严校时给检测脚本传参（见下）。
+- **「文件作用」行查存在、非空、非 TODO 占位**；写得准不准（是否说清契约而非复述文件名）靠 code review，机器不越界 —— 与 3.1 的命名判据同一哲学。
+
+**检测（swift-format 与 SwiftLint 都没有文件头规则，用本 skill 自带脚本）**：
+
+```bash
+bash "$SKILL/scripts/verify_file_header.sh" $DIRS          # 只报告（只读）
+bash "$SKILL/scripts/verify_file_header.sh" $DIRS --fix    # 给缺整块头的文件补结构
+bash "$SKILL/scripts/verify_file_header.sh" $DIRS --copyright "UGREEN. All rights reserved."
+```
+
+`--fix` 的边界是**只补结构、绝不编内容**：只处理整块缺失的文件（首行不是 `//` 注释），文件名、日期、创建者自动填（创建者取 macOS 账户全名，空则回退用户名；项目名取 git 仓库根名）；「文件作用」永远填 `TODO（需人工补写）`，修完 `--check` 仍会报 TODO 占位直到人工补写 —— 生成假描述比缺描述更糟。已有注释头但结构不完整的文件**跳过不修**（覆盖别人的头风险太高），对照本节人工修正。排除 `.build/`、`Pods/`、`DerivedData/` 与 `.git/`；第三方与生成代码放排除目录，不逐个豁免。
+
+**创建时就生成（治本），两条路**：
+
+1. **Xcode 新建文件**：配置 `IDETemplateMacros.plist` 的 `FILEHEADER` 宏，新建文件自动带全头。可直接复制本 skill 的 `assets/IDETemplateMacros.plist`。落点三选一：全局 `~/Library/Developer/Xcode/UserData/IDETemplateMacros.plist`（影响所有工程，SwiftPM 包**没有** `.xcodeproj`，通常只能用这档）；单工程 `<工程名>.xcodeproj/xcshareddata/IDETemplateMacros.plist`。版权主体按项目改 plist 里的对应行。**配置后必须实测一次**：新建一个 Swift 文件，对照本节判据逐行核对（`___DATE___` 的渲染格式随环境而定，若不是 `yyyy/M/d` 先调模板再投入使用），再跑 `verify_file_header.sh` 确认零违规。
+2. **agent / 脚本新建文件**：写完代码**先写文件头再收尾**。创建者取 macOS 账户全名（`dscl . -read "/Users/$USER" RealName`，空则回退 `id -un`），日期用当天；「文件作用」必须真写，禁止留 TODO 交付。
+
+已知边界（诚实的漏检，不是误报）：只看前 12 行的行前缀，不解析 Swift 语法；「文件作用」的多行续行（第 9 行起以 `//` 续）不校验内容；以 `/* */` 块注释开头或带 SPDX 头的第三方文件请进排除目录。
+
 ---
 
 ## 5. 语言与设计约束
@@ -724,3 +764,4 @@ swiftlint lint --quiet 2>&1 | grep -oE '\([a-z_]+\)$' | sort | uniq -c | sort -r
 | v1.5.6 | 2026-09-11 | **补齐「在制品已在树上时如何回退纯格式改动」的流程与一个静默失败陷阱**（起因：真实工程按本规范整改成员空行时，703 处补丁落在已有 325 个在制品文件的树上，规范 8.2 第 1 条只规定了「先提交在制品再重排」这一种顺序，未覆盖顺序已颠倒的补救）。**改动**：`remediation-playbook.md` §2 新增「第 ③ 步的补救」小节 —— 用 `git diff` 把纯格式增量单独存成补丁（存仓库外，勿留 `/tmp`、`/var/folders` 这类会被系统清理的位置）、提交逻辑时 `patch -p1 -R` 撤下再 `patch -p1` 放回、事后用 `--check` 复核；并明确补丁的两条验收（`^+` 行全为空行、`git apply --check -R` 能精确还原）。同节记录一个**实测的静默失败**：仓库根在代码目录上一级时（仓库根 `dock-center-macos`、代码在 `dock-center-macos/UGDockNative`），补丁路径相对代码目录生成而 `git apply` 按仓库根解析，路径对不上只打印 `Skipped patch` 并**返回 0、文件不变**，形似成功 —— 可靠写法为代码目录内 `patch -p1 [-R]`，或仓库根 `git apply [-R] --directory=<代码目录> -p1`，执行后必须用 `git diff --stat` 确认（该陷阱在本次验证中使一次「反向试放成功」的结论失效，故要求以副作用核验而非退出码核验） |
 | v1.5.7 | 2026-09-18 | **发布为插件形态 + 发布清单自检**（起因：本规范要以插件形式对外分发，需要一个「装一下就能用」的入口，而不是让每个人各自配软链）。① 仓库改为「市场根 + 插件子目录」形态：新增 `.codebuddy-plugin/marketplace.json`，内容主体移入 `plugins/swift-coding-standards/`，`SKILL.md` 位于插件根 —— 加载器 `SkillExtensionLoader` 会单独解析 `<插件根>/SKILL.md`，因此**不产生第二份内容副本**（迁移用 `git mv`，21 个文件全部被识别为纯重命名，另有内容哈希清单逐条比对佐证零改动）。② `verify_consistency.sh` 新增第 9 节「发布清单」：`plugin.json` 的 `name`/`version`/`license` 必须与 `SKILL.md` 及正文版本表一致，市场条目的 `version` 与 `source` 必须与插件一致，插件根 `LICENSE` 必须与仓库根 `LICENSE` 逐字节相同 —— 版本号由此从「两处出处」变成「两处出处 + 机器校验」；安装进插件缓存后上层不再是仓库，相关三处检查转为 `[note]` 跳过而非误报。③ 新增 `README.md`（仓库级 + 插件级）、`LICENSE`（MIT，两处同文）、`THIRD-PARTY-NOTICES.md` 与 `LICENSES/Apache-2.0.txt`：`references/official/` 内是 Apache-2.0（S1/S3/S4/S5）与 CC BY 4.0（S6）的**逐字原文**，对外再分发**必须**随附 Apache-2.0 全文（其第 4(a) 条）并保留署名，此前只有来源登记表、没有许可全文。④ 修 `-h` 的范围输出为动态区间（原 `sed -n '2,19p'` 是硬编码行号，头部一增删行就脱节 —— 与 v1.5.5 在 `verify_member_spacing.sh` 上修过的是同一类缺陷）；汇总提示里指向仓库外 `docs/skill-review/` 的悬空路径改为「定义见本脚本第 7 节」（附录 C 中的历史引用按惯例保留原文不动）。⑤ `SOURCES.md` 示例命令里的 `SKILL_DIR=<skill-dir>` 改为真实路径示例：尖括号会被 zsh 当作输入重定向，照抄即报 `parse error`。**已知未修（待专项处理）**：同类尖括号占位符在 `SKILL.md` 与其余 references 中另有 20 处（`<skill-dir>` / `<工程目录>` / `<dirs>` 等），属全库改为「先定义变量再引用」的约定变更，不与本次发布混作一个提交 |
 | v1.5.8 | 2026-09-18 | **命令一律改为「先定义变量再引用」，并把「可照抄性」变成机器校验**（起因：用户指出公开仓库的文档里还留着本机绝对路径，别人照抄必然失败；随后复查又发现多条示例命令本身照抄即报错）。① `verify_consistency.sh` 新增第 10 节：机器检查**围栏代码块内**与**脚本文档头 `# bash …` 示例行内**是否残留**未加引号的**尖括号占位符。判据严格限定在「会被照抄的位置」，以免制造误报 —— 已用引号包裹的（`"$DIR"` 或 `"<路径>"`）不会触发重定向、不算违规；`<https://…>`（Markdown 自动链接）、`</…>`（闭合标签）、`<!--`（注释）一律排除；`references/official/` 是上游逐字原文、改写会破坏引文校验，整目录跳过；正文散文里的示例写法不查（那是叙述，不是可粘贴的命令）。该节经**四组反向测试**证明真会 FAIL：代码块内注入未加引号占位符 → FAIL 1；同一处加引号 → 回到 0（证明判定的是「未加引号」而不是「一律禁尖括号」）；脚本示例注注入 → FAIL 1；注入 `<https://…>` 与 `</b>` → 无误报。② 清掉全部可照抄位置的尖括号占位符（`SKILL.md`、`remediation-playbook.md`、`defect-catalog.md`、正文），统一改为「先定义变量再引用」：`SKILL="…"` / `PROJ="…"` / `DIRS="Sources Tests"`，路径变量一律加引号，列表变量**有意不加引号**（要按空格拆成多个目录参数），并在 `SKILL.md` 新增「路径与变量约定」一节把这条写法讲清楚。③ 补两个脚本的参数处理，消除两处静默失败：`fetch_official_sources.sh` 此前是六个脚本里**唯一不认 `--help`** 的（当未知参数退出 2，而文档正指着它），现补 `-h`/`--help` 并让未知参数打印帮助；`verify_citations.sh` 此前**静默忽略所有参数**（拼错的开关被当无事发生、仍退出 0），现改为拒绝未知选项并退出 2。④ `verify_member_spacing.sh` 的整改提示由 `bash <本脚本> <目录>... --fix` 改为打印**可直接照抄的真命令**（`bash "$0" <实际目录> --fix`），并实跑验证「照抄执行 → 违规数归零」；其用法块同时改用 `Sources Tests` 这种真实目录名，并写明「至少需要一个目录参数、脚本不自动探测」。⑤ 两份 README 精简：删除插件 README 的「目录结构」一节与仓库 README 的「仓库结构」一节（对读者是噪音，且全库无任何位置引用它们，删除不产生悬空引用）；「其它 agent」一节由本机绝对路径改为 clone 后自定位（`cd` 后 `ln -sfn "$PWD"`）。⑥ 更正 opencode 的说明并删除本机那条冗余软链：实测 opencode **会自动加载** `~/.agents/skills` 与 `~/.claude/skills`（证据为其二进制内嵌的配置文档原文，以及 `opencode debug skill` 实测输出中来自这两个目录的 43 + 16 条），因此不需要为它单独建链；删除 `~/.config/opencode/skills/swift-coding-standards` 后复测，opencode 仍经 `~/.agents/skills/…` 发现本 skill。⑦ 顺带记录一处**测量法**教训：`opencode debug skill` 的输出一旦经管道（`| grep`、`| head`）会因 SIGPIPE 被随机截断 —— 同一条件连测三次得到 0/1/0 的矛盾结果，一度被误读成「删软链导致 opencode 看不到 skill」；改为重定向到文件后再分析即稳定可复现（三次均 290 行 / 48 个 skill）。这与 v1.5.6 记下的「测退出码不要接管道」同族：**先确认测量方法成立，再解读结论** |
+| v1.6.0 | 2026-10-20 | **新增文件头规则（第 18 类缺陷）+ 修正「自动触发」链路的执行歧义**（起因：用户报「实际开发中新建的 Swift 文件常没有文件头」，并附标准头示例；随后又确认了一起「skill 已读取但未执行完整整改管线」的失误，其根因分析经核实成立）。**文件头部分**：① 正文新增 4.10「文件头（MUST）」，八行三段结构（定位块 / 创作块 / 作用块），判据是**查结构不查值** —— 创建者与日期是创建时的事实、事后手动修改不算违规，日期只查格式不查数值（mtime 会变，对数值必然误报），版权主体默认不校验、传 `--copyright` 才严校，「文件作用」查存在 / 非空 / 非 TODO 占位、质量靠评审；唯一查值的项是文件名行必须与磁盘一致。② 新增自研检测器 `scripts/verify_file_header.sh`（裸目录 / `--check` / `--quiet` / `--fix`，目录在前开关在后），`--fix` 只补整块缺失的结构、作用行永远留 TODO 不编内容、已有注释头的文件跳过不修；TODO 占位（项目名 / 版权主体 / 文件作用）在 `--check` 下持续计违规直到人工补写。收录前经 22 项正反测试：合法头通过、缺头 / 文件名不符 / 缺 Copyright / TODO 占位逐项 FAIL、`--fix` 后结构合规、对照文件哈希不变；期间修复两个真 bug —— awk 把上一个文件的检查推迟到下一个文件首行执行导致**跨文件错位归因**（改用 `cfname`/`cfbase` 在 `FNR==1` 先保存上下文），以及版权 TODO 占位恰好满足通用形状而漏检（补显式 TODO 检查）。③ 缺陷全景表与缺陷目录第 1 节新增第 18 类，UGDockNative 实测基线：468 文件中 381 处 / 255 文件（234 处整块缺失 + 21 个旧式头部文件各 7 项不合规）。④ 新增模板资产 `assets/IDETemplateMacros.plist`（Xcode `FILEHEADER` 宏，含 `___FULLUSERNAME___`/`___DATE___` 等标准宏），4.10 写明落点（全局 UserData / 单工程 xcshareddata）与「配置后必须实测一次」的要求 —— SwiftPM 包没有 `.xcodeproj`，通常只能用全局档。**触发链路部分**：⑤ SKILL.md 场景五把 `remediate.sh --check` 的「（只读）」更正为「不改 Swift 源码与既有配置；缺失配置会自动生成（只新增）；默认写出报告文件」—— 实测 `--check` 模式下配置自动生成与报告写出照常执行，「只读」说法会让代理误判修改边界；`remediate.sh` 的自报模式文案同步。⑥ SKILL.md「默认生效」节新增**场景选择硬判据**：用户以「不规范 / 改规范 / 修一下格式」为由、或修改触碰存量违规代码时，完成前必须跑场景五 `--check` 验收（哪怕小改）；新增「完成前自检（收尾门禁）」一节：宣告完成前列出本轮触碰过的 Swift 文件、对照 9 条验收标准逐条给出命令输出证据。⑦ 触发词补「不规范」「修一下格式」等不带 Swift 字样的高频说法；SKILL.md / 两份清单 / README 的「17 类缺陷」同步为 18 类（description 有改动，需重启客户端生效） |

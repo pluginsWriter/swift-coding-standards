@@ -37,6 +37,7 @@ bash "$SKILL/scripts/remediate.sh" "$PROJ" --check
 | 15 | 测试断言过弱 | `swiftlint lint --quiet 2>&1 \| grep -E 'xctfail_message\|xct_specific_matcher'` | 补失败说明；改用专用断言 |
 | 16 | 行长失控 | `swiftlint lint --quiet 2>&1 \| grep line_length` | 先提取中间变量，再断行 |
 | 17 | 成员间缺分隔空行 | `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS`（**swift-format 与 SwiftLint 都没有这条规则**，只能用它） | `--fix` 插入空行；注意 S5 除外条款：单行存储属性之间、单行 enum case 之间、紧密相关的两个属性之间**可以**不留空行，不要误改 |
+| 18 | 文件头缺失或不合规 | `bash "$SKILL/scripts/verify_file_header.sh" $DIRS`（**swift-format 与 SwiftLint 都没有文件头规则**，只能用它；判据见正文 4.10：查结构不查值，版权主体传 `--copyright "UGREEN. All rights reserved."` 才严校） | 缺整块头用 `--fix` 补结构（作用行留 TODO，需人工补写）；已有注释头但结构不完整的对照 4.10 人工修，脚本不覆盖别人的头 |
 
 ## 2. 需要判断，但可用 grep 定量（部分可检出）
 
