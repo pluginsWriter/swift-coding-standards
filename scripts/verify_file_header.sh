@@ -2,9 +2,8 @@
 #
 # verify_file_header.sh —— 检查「Swift 文件头是否符合正文 4.10 的八行三段结构」
 #
-# 背景：正文 4.10 把标准文件头定为 MUST（定位块 / 创作块 / 作用块），但 swift-format
-#       与 SwiftLint 都没有文件头规则，这条此前只写在纸上。本脚本把它变成可机器
-#       检出的，判据见下。
+# 背景：正文 4.10 把标准文件头定为 MUST（定位块 / 创作块 / 作用块），而 swift-format
+#       与 SwiftLint 都没有文件头规则，只能由本脚本机器检出。判据见下。
 #
 # 标准头（8 行，含首尾分隔；与 Xcode IDETemplateMacros 模板一致）：
 #   //
@@ -17,19 +16,21 @@
 #   //  文件作用：<一句话，说明这个文件干什么>
 #
 # 判据（查结构不查值，这是「默认生成」与「手动修改」能并存的关键）：
-#   - **创建者字段不校验与当前设备一致**：只查「Created by … on …」结构存在、
-#     日期为 yyyy/M/d 格式（允许不补零）。谁创建的、哪天创建的，都是创建时的事实，
-#     事后手动修改不算违规。
+#   - **默认不校验创建者身份**：只查「Created by … on …」结构存在、
+#     日期为 yyyy/M/d 格式（允许不补零）。新建文件可传 --creator 实测创建者核对；
+#     旧文件的创建者与日期是历史事实，不拿当前登录用户强行覆盖。
+#     例外：`<项目名> Team` 这类由项目名拼造的作者是编造而非历史事实，**默认就拦**，
+#     不需要 --creator（Xcode 的 ___FULLUSERNAME___ 只会渲染账户全名）。
 #   - **日期只查格式不查数值**：文件 mtime 会变，拿 mtime 对日期必然误报。
 #   - **版权主体默认不校验**：通用规范只查「Copyright © yyyy … All rights reserved.」
-#     结构；传 `--copyright "UGREEN. All rights reserved."` 后才严校主体。
+#     结构；传 `--copyright "Example Corp. All rights reserved."` 后才严校主体。
 #   - **「文件作用」行查存在、非空、非 TODO 占位**；写得准不准靠 code review
 #     （正文 4.10 的判据，机器不越界）。
 #
 # --fix 的边界（只补结构，绝不编内容）：
 #   - 只处理**整块缺失**的文件（首行不是 // 注释）：生成标准头后接原文。
-#     文件名、日期、创建者自动填（创建者取 macOS 账户全名，空则回退用户名；
-#     项目名取 git 仓库根名，非 git 目录留 TODO 占位）。
+#     旧文件创建者/创建日期未知，必须留 TODO 供人工核实；项目名取 git 仓库根名，
+#     非 git 目录留 TODO 占位。新建文件应由创建者直接填写真实身份与当天日期。
 #   - 「文件作用」永远填 `TODO（需人工补写）` —— 生成假描述比缺描述更糟。
 #   - 已有注释头但结构不完整的文件**跳过不修**（覆盖别人的头风险太高），只报告。
 #   - 修完后 --check 仍会报 TODO 占位，直到人工补写 —— 这是有意的。
@@ -44,7 +45,8 @@
 #   bash verify_file_header.sh Sources Tests --check # 同上，显式声明只读意图（适合写进 CI）
 #   bash verify_file_header.sh Sources Tests --fix   # 给缺头的文件补标准头（会改源码）
 #   bash verify_file_header.sh Sources Tests --quiet # 只输出汇总
-#   bash verify_file_header.sh Sources --copyright "UGREEN. All rights reserved."
+#   bash verify_file_header.sh Sources --copyright "Example Corp. All rights reserved."
+#   bash verify_file_header.sh NewFileDirectory --creator "实际创建者" # 核验新建文件
 #   bash verify_file_header.sh -h, --help
 #
 #   目录用空格分隔，可给多个；**至少需要一个，脚本不自动探测**。
@@ -61,6 +63,7 @@ usage() { sed -n '/^# 用法：$/,/^[^#]/p' "$0" | sed 's/^# \{0,1\}//'; }
 FIX=0
 QUIET=0
 COPYRIGHT=""
+CREATOR_EXPECTED=""
 DIRS=""
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -68,6 +71,9 @@ while [ $# -gt 0 ]; do
     --fix) FIX=1 ;;
     --check) FIX=0 ;;   # 显式只读（只读本就是默认），便于在 CI 里声明意图
     --quiet) QUIET=1 ;;
+    --creator)
+      [ $# -ge 2 ] && [ -n "$2" ] || { echo "用法错误：--creator 需要非空参数。" >&2; exit 2; }
+      CREATOR_EXPECTED="$2"; shift ;;
     --copyright)
       [ $# -ge 2 ] || { echo "用法错误：--copyright 需要一个参数。" >&2; exit 2; }
       COPYRIGHT="$2"; shift ;;
@@ -111,7 +117,7 @@ FNR == 1 {
 FNR <= 12 { n++; L[n] = rtrim($0) }
 END { if (inited) check_file() }
 
-function check_file(   i, rest, body) {
+function check_file(   i, rest, body, proj) {
   if (n == 0) { rep(1, "文件为空，缺文件头"); return }
   if (L[1] !~ /^\/\//) { rep(1, "缺文件头（首行不是 // 注释；--fix 可补结构）"); return }
 
@@ -129,9 +135,23 @@ function check_file(   i, rest, body) {
   if (n < 4 || L[4] != "//")
     rep(4, "缺分隔行（应为单独一行 \"//\"）")
 
-  # 第 5 行：Created by … on yyyy/M/d. —— 查结构不查创建者与日期数值
+  # 第 5 行：创建者为历史事实；提供 --creator 时才按可靠来源核对。
   if (n < 5 || L[5] !~ /^\/\/  Created by .+ on [0-9][0-9][0-9][0-9]\/[0-9]?[0-9]\/[0-9]?[0-9]\.$/)
     rep(5, "Created by 行缺失或格式不对（应为 \"//  Created by <创建者> on yyyy/M/d.\"）")
+
+  else {
+    rest = L[5]
+    sub(/^\/\/  Created by /, "", rest)
+    sub(/ on [0-9][0-9][0-9][0-9]\/[0-9]?[0-9]\/[0-9]?[0-9]\.$/, "", rest)
+    proj = L[3]
+    sub(/^\/\/  /, "", proj)
+    if (index(rest, "TODO") > 0) rep(5, "创建者为 TODO 占位，需人工核实")
+    # 无需 --creator 也能拦住的编造模式：拿项目名拼一个「<项目名> Team」当作者。
+    else if (proj != "" && rest == proj " Team")
+      rep(5, "创建者疑似由项目名拼造（\"" proj " Team\"）；Xcode 的 ___FULLUSERNAME___ 取账户全名，此处应填真实创建者")
+    else if (creator_expected != "" && rest != creator_expected)
+      rep(5, "创建者不符：期望 \"" creator_expected "\"，实际 \"" rest "\"")
+  }
 
   # 第 6 行：Copyright 行；--copyright 传参后严校主体
   if (n < 6 || L[6] !~ /^\/\/  Copyright © [0-9][0-9][0-9][0-9] .+ All rights reserved\.$/) {
@@ -193,9 +213,8 @@ fi
 CHANGED=0
 SKIPPED=0
 if [ "$FIX" -eq 1 ]; then
-  CREATOR="$(dscl . -read "/Users/$USER" RealName 2>/dev/null | sed 's/^RealName: *//' | tr -d '\n')"
-  [ -n "$CREATOR" ] || CREATOR="$(id -un)"
-  TODAY="$(date +%Y/%m/%d | sed 's|/0|/|g')"
+  CREATOR="TODO（待核实创建者）"
+  TODAY="TODO"
   YEAR="$(date +%Y)"
   for f in "${FILES_A[@]}"; do
     FIRST="$(head -n 1 "$f")"
@@ -226,7 +245,7 @@ if [ "$FIX" -eq 1 ]; then
 fi
 
 if [ "$FIX" -eq 0 ]; then
-  awk -v hitsfile="$ALL_HITS" -v copyright="$COPYRIGHT" "$AWK_PROG" "${FILES_A[@]}" > /dev/null
+  awk -v hitsfile="$ALL_HITS" -v copyright="$COPYRIGHT" -v creator_expected="$CREATOR_EXPECTED" "$AWK_PROG" "${FILES_A[@]}" > /dev/null
 fi
 
 N_HITS=$(grep -c . "$ALL_HITS" 2>/dev/null || true)

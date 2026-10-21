@@ -3,11 +3,10 @@
 # verify_consistency.sh —— 校验 skill 内部「同一事实的多个副本」是否仍然一致
 #
 # 为什么需要它：SKILL.md、规范正文、整改手册、命名词典、两个模板资产之间有多处
-# 重复表述（验收条数、版本号、缩进与行长、规则分工、引文表）。历史上正是这些
-# 手抄副本造成了漂移：drain 在手册里是「不要改」、在词典里是「必须改」；
-# 正文版本表停在 v1.3 而变更记录已到 v1.5；4.6 的续行缩进残留 2 空格。
+# 重复表述（验收条数、版本号、缩进与行长、规则分工、引文表）。同一事实各写一份时，
+# 改一处忘另一处就会漂移，而漂移后的两份文本单看都「自洽」，人工读不出来。
 #
-# 设计原则：**不写第二份期望值**。所有期望值一律从单一权威来源推导
+# 原则：**不写第二份期望值**。所有期望值一律从单一权威来源推导
 # （条数来自手册表格行数、版本号来自变更记录末行、阈值来自模板资产），
 # 再拿去比对其它副本。硬编码期望只会制造下一个漂移源。
 #
@@ -17,7 +16,7 @@
 #   bash verify_consistency.sh -h
 #
 # 覆盖 10 节：1 验收条数 / 2 版本号 / 3 缩进与行长 / 4 规则分工 / 5 引文表 /
-# 6 frontmatter 与体量 / 7 已知待决漂移 / 8 可接受词表副本数 / 9 发布清单（插件·市场·许可）/
+# 6 frontmatter 与体量 / 7 已知待决漂移 / 8 可接受词表副本数 / 9 分发文件（必需项在位·无悬空引用）/
 # 10 文档命令的可照抄性（代码块内未加引号的尖括号占位符）。
 #
 # 退出码：0 = 无 FAIL；1 = 存在 FAIL；2 = 用法错误
@@ -274,80 +273,33 @@ for f in "$SKILL" "$MAIN" "$PLAYBOOK" "$DICT"; do
 done
 CNT=$(printf '%s' "$COPIES" | wc -w | tr -d ' ')
 if [ "$CNT" -le 2 ]; then ok "可接受词表副本收敛（${COPIES}）"
-else warn "可接受词表出现在 $CNT 个文件：$COPIES —— 权威应为 naming-antipatterns.md，其余宜改为引用（drain 漂移即源于此）"; fi
+else warn "可接受词表出现在 $CNT 个文件：$COPIES —— 权威应为 naming-antipatterns.md，其余宜改为引用（同一事实留多份副本必然漂移）"; fi
 
 # ---------------------------------------------------------------------------
-section '9. 发布清单（权威来源：正文版本表 + 插件根许可）'
-PLUGIN_JSON="$SKILL_DIR/.codebuddy-plugin/plugin.json"
-R_MK="$SKILL_DIR/../../.codebuddy-plugin/marketplace.json"
-R_LIC="$SKILL_DIR/../../LICENSE"
-P_LIC="$SKILL_DIR/LICENSE"
+section '9. 分发文件（skill 根即仓库根，必需文件在位 + 无悬空引用）'
+# skill 直接以仓库根分发，LICENSE / README.md 各只有一份，不再有两份副本可比对；
+# 本节因此改查两件事：对外分发必需的文件是否在位，以及有没有指向已删除清单的悬空引用。
+MISSING=""
+for f in LICENSE README.md SKILL.md THIRD-PARTY-NOTICES.md; do
+  [ -f "$SKILL_DIR/$f" ] || MISSING="$MISSING $f"
+done
+if [ -z "$MISSING" ]; then ok "必需分发文件均在 skill 根（LICENSE / README.md / SKILL.md / 第三方声明）"
+else bad "skill 根缺分发文件：$MISSING"; fi
 
-# 取 JSON 里第一个该键的字符串值。不用 jq：它并非 macOS 预装，会引入外部依赖。
-json_str() {
-  grep -oE "\"$2\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" "$1" 2>/dev/null \
-    | head -1 | sed 's/.*:[[:space:]]*"\(.*\)"$/\1/'
-}
-
-if [ ! -f "$PLUGIN_JSON" ]; then
-  printf '  [note] 未找到 .codebuddy-plugin/plugin.json（尚未做成插件形态，跳过）\n'
-else
-  P_NAME=$(json_str "$PLUGIN_JSON" name)
-  P_VER=$(json_str "$PLUGIN_JSON" version)
-  P_LIC_ID=$(json_str "$PLUGIN_JSON" license)
-  if [ "${P_NAME}" = "$NAME" ]; then
-    ok "plugin.json 的 name「${P_NAME}」与 SKILL.md 一致"
-  else
-    bad "plugin.json 的 name「${P_NAME}」≠ SKILL.md 的「${NAME}」（市场显示名会与 skill 名不符）"
+# 判据里的清单名用变量拼：本脚本自身也含这些字面量（就是用来查它们的），扫描时跳过自己。
+DANGLING=""
+LIST_PAT="codebuddy-plugin"
+LIST_PAT="${LIST_PAT}|plugin[.]json|marketplace[.]json|/plugin install"
+for f in "$SKILL_DIR"/*.md "$SKILL_DIR"/references/*.md "$SKILL_DIR"/scripts/*.sh; do
+  [ -f "$f" ] || continue
+  case "$f" in */verify_consistency.sh) continue ;; esac
+  case "$f" in */references/official/*) continue ;; esac
+  if grep -qE "$LIST_PAT" "$f" 2>/dev/null; then
+    DANGLING="$DANGLING $(basename "$f")"
   fi
-  WANT_VER=$(printf '%s' "$V_HEAD" | sed 's/^v//')
-  if [ -z "${P_VER}" ]; then
-    bad "plugin.json 未声明 version（装到插件缓存时会落到 unknown 目录）"
-  elif [ "${P_VER}" = "$WANT_VER" ]; then
-    ok "plugin.json version ${P_VER} == 正文版本表 ${V_HEAD}"
-  else
-    bad "plugin.json version「${P_VER}」≠ 正文版本表「${V_HEAD}」（改版本时两处都要改）"
-  fi
-  if [ -z "${P_LIC_ID}" ]; then
-    bad "plugin.json 未声明 license（对外分发必须有）"
-  else
-    ok "plugin.json license = ${P_LIC_ID}"
-  fi
-
-  if [ -f "$R_MK" ]; then
-    MK_VER=$(json_str "$R_MK" version)
-    MK_SRC=$(json_str "$R_MK" source)
-    WANT_SRC="./plugins/$(basename "$SKILL_DIR")"
-    if [ "${MK_VER}" = "${P_VER}" ]; then
-      ok "marketplace.json 条目 version ${MK_VER} == plugin.json"
-    else
-      bad "marketplace.json 条目 version「${MK_VER}」≠ plugin.json「${P_VER}」"
-    fi
-    if [ "${MK_SRC}" = "$WANT_SRC" ]; then
-      ok "marketplace.json 的 source 指向 ${WANT_SRC}"
-    else
-      bad "marketplace.json 的 source「${MK_SRC}」≠ 期望的「${WANT_SRC}」"
-    fi
-  else
-    printf '  [note] 上层无 market.json（装进 plugins/cache 后属正常，跳过市场清单校验）\n'
-  fi
-fi
-
-# 许可：插件根那份随包分发（装到哪带到哪），仓库根那份供托管平台识别，两者必须同文
-if [ -f "$P_LIC" ]; then
-  ok "插件根 LICENSE 存在（随包分发）"
-else
-  warn "插件根缺 LICENSE —— 插件安装到缓存后不携带许可文本"
-fi
-if [ -f "$P_LIC" ] && [ -f "$R_LIC" ]; then
-  if cmp -s "$P_LIC" "$R_LIC"; then
-    ok "仓库根 LICENSE 与插件根 LICENSE 逐字节相同"
-  else
-    bad "仓库根 LICENSE 与插件根 LICENSE 不一致（两份许可文本已漂移）"
-  fi
-elif [ -f "$P_LIC" ]; then
-  printf '  [note] 上层无 LICENSE（装进 plugins/cache 后属正常，跳过比对）\n'
-fi
+done
+if [ -z "$DANGLING" ]; then ok "无指向市场清单的悬空引用（插件形态已移除，分发走 skill 目录）"
+else bad "以下文件仍引用市场清单：$DANGLING"; fi
 
 # ---------------------------------------------------------------------------
 section '10. 文档命令的可照抄性（判据：代码块内未加引号的尖括号占位符）'
@@ -371,7 +323,7 @@ PH_HITS=0
 PH_TAB="$(printf '\t')"
 DOC_FILES="$SKILL"
 for f in "$SKILL_DIR"/references/*.md; do [ -f "$f" ] && DOC_FILES="$DOC_FILES $f"; done
-DOC_FILES="$DOC_FILES $SKILL_DIR/README.md $SKILL_DIR/../../README.md"
+DOC_FILES="$DOC_FILES $SKILL_DIR/README.md"
 for f in $DOC_FILES; do
   [ -f "$f" ] || continue
   case "$f" in *"/references/official/"*) continue ;; esac

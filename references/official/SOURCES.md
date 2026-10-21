@@ -111,5 +111,5 @@ bash "$SKILL_DIR/scripts/fetch_official_sources.sh"
 | linkedin/swift-style-guide（S6） | **CC BY 4.0**（Ⓒ LinkedIn Corporation 2016） | **必须保留署名与许可** —— 已内置于快照顶部标注头，抓取脚本会自动维护，请勿手工删除 |
 
 重新分发本 skill 时，请保留本文件与各快照文件顶部的来源标注。
-完整的第三方署名、各来源许可与再分发条件另见插件根目录的 `THIRD-PARTY-NOTICES.md`，
+完整的第三方署名、各来源许可与再分发条件另见仓库根目录的 `THIRD-PARTY-NOTICES.md`，
 其中随附 Apache License 2.0 全文（`LICENSES/Apache-2.0.txt`）以满足其第 4(a) 条要求。

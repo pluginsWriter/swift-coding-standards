@@ -6,7 +6,7 @@
 #       采集基线 → 机械修复 → 复检 → 生成按规则分类的人工待办清单与报告。
 #       命名、文档、设计类改动需人工判断，按 references/remediation-playbook.md 执行。
 #
-# 「完整」的定义见 references/remediation-playbook.md 第 1 节（9 条验收标准）。
+# 「完整」的定义见 references/remediation-playbook.md 第 1 节（10 条验收标准）。
 # 只跑本脚本的 --fix **不等于**整改完成 —— 它只解决格式。
 #
 # 用法：
@@ -25,10 +25,10 @@
 # 安全性：不删除任何文件；只有 --fix 会修改源码。缺配置时会**新增**两个配置文件，
 #         但绝不改写已存在的 .swift-format/.swiftlint.yml。
 #
-# 缺配置时的行为（2026-09-11 起）：自动从 skill 资产模板生成缺失的
+# 缺配置时的行为：自动从 skill 资产模板生成缺失的
 # .swift-format / .swiftlint.yml，并把 .swiftlint.yml 的 included 改写为本次实际
 # 检查的目录。为什么必须带配置：缺少配置时工具会回退默认规则集，产生**虚假的低基线**。
-# 实测（2026-09-11，swiftlint 0.63）：同一段 `print(value!)`，无 .swiftlint.yml 时报 0 条，
+# 实测：同一段 `print(value!)`，无 .swiftlint.yml 时报 0 条，
 # 有配置时报 1 条 force_unwrapping —— opt_in 规则在无配置时完全不生效。
 # 另外 .swiftlint.yml 的 included 是相对配置文件目录解析的，列出的目录不存在时
 # （典型：Xcode 工程没有 Sources/）SwiftLint 会空扫并同样报 0 条 ——
@@ -83,8 +83,8 @@ SWIFTLINT_OK=0
 command -v swiftlint >/dev/null 2>&1 && SWIFTLINT_OK=1
 
 # ---------------------------------------------------------------- 确定目录
-# C4（2026-09-11）：目录清单由字符串拼接改为数组。此前 `$DIRS` 在命令里
-# 不加引号展开，路径含空格时会被二次切分；数组展开 `"${DIRS_A[@]}"` 无此问题。
+# 目录清单用数组：拼接字符串在命令里不加引号展开时，路径含空格会被二次切分；
+# 数组展开 `"${DIRS_A[@]}"` 无此问题。
 if [ -n "$DIRS" ]; then
   # shellcheck disable=SC2206  # --dirs 的契约就是空格分隔
   DIRS_A=($DIRS)
@@ -330,7 +330,7 @@ LINT_DIST="$(printf '%s\n' "$LINT_RAW" | lint_dist)"
   echo "执行模式：$( [ "$MODE" = "fix" ] && echo '已执行机械修复（--fix）' || echo '只读检查（--check，不修源码；缺配置仍会生成、报告仍会写出）' )"
   echo "配置模板：$( if [ -n "$CONFIG_BOOTSTRAPPED" ]; then echo "初始缺失，已自动生成 ${CONFIG_BOOTSTRAPPED}（included 取实际检查目录）"; elif [ -n "$CONFIG_MISSING" ]; then echo '**缺失**（--allow-missing-config 放行，下述基线与违规数不可信）'; else echo '已就位（`.swift-format` + `.swiftlint.yml`）'; fi )"
   echo
-  echo "> 完整验收标准见 \`references/remediation-playbook.md\` 第 1 节（9 条）。"
+  echo "> 完整验收标准见 \`references/remediation-playbook.md\` 第 1 节（10 条）。"
   echo "> **本报告只覆盖可自动化部分。命名、文档、设计类改动需按手册人工完成后再补记。**"
   echo
   echo "## 1. 前后对比"
@@ -371,7 +371,7 @@ LINT_DIST="$(printf '%s\n' "$LINT_RAW" | lint_dist)"
   echo "以下按规则分组，每类最多列 $MAX_PER_RULE 条明细。逐条按整改动作处理后删除对应条目。"
   echo
   if [ -z "$LINT_ROWS" ]; then
-    echo "无待处理项。"
+    echo "无 SwiftLint 待处理项；仍须完成下方的正文注释人工复核。"
   else
     for rule in $MANUAL_RULES; do
       cnt=$(printf '%s\n' "$LINT_ROWS" | awk -F'\t' -v r="$rule" '$4==r' | grep -c . || true)
@@ -402,12 +402,36 @@ LINT_DIST="$(printf '%s\n' "$LINT_RAW" | lint_dist)"
       echo
     fi
   fi
+  echo "### 正文注释人工复核（无论 SwiftLint 是否报错均必须完成）"
+  echo
+  echo "以下是本次扫描的正文注释定位样本（最多 $MAX_PER_RULE 行，默认跳过文件头前 8 行）；**样本不是完整审查，缺注释的声明不会出现在此处**："
+  echo
+  COMMENT_SAMPLE="$(find "${DIRS_A[@]}" -type f -name '*.swift' \
+    -not -path '*/.build/*' -not -path '*/DerivedData/*' -not -path '*/Pods/*' \
+    -exec awk 'FNR > 8 && /^[[:space:]]*\/\// {print FILENAME ":" FNR ":" $0}' {} + \
+    | head -n "$MAX_PER_RULE")"
+  if [ -n "$COMMENT_SAMPLE" ]; then
+    echo '```'
+    printf '%s\n' "$COMMENT_SAMPLE"
+    echo '```'
+  else
+    echo "未发现正文注释；需检查是否存在应有但缺失的注释。"
+  fi
+  echo
+  echo "- [ ] 已确定工程注释语言约定；中文项目用中文，未声明约定且中文沟通时默认中文（见 \`references/comment-standards.md\` 第 6 节）。"
+  echo "- [ ] 已逐个核对本次新建/修改的声明是否缺少应有的 \`///\` / \`//\`；已检查正文注释与受影响邻近注释：语言一致、调用契约准确、解释原因而非复述代码、无过期内容。"
+  echo "- [ ] 已记录检查范围、结论及例外；仅文件头通过或 \`missing_docs\` 为 0 不能勾选此项。"
+  echo
   echo "## 5. 完成前必须执行的终检"
   echo
   echo '```bash'
   echo "swift format lint --recursive --strict $DIRS   # 必须无输出"
   echo "swiftlint lint --strict --quiet                 # 必须无输出（注意 --strict）"
+  echo "bash \"\$SKILL/scripts/verify_member_spacing.sh\" $DIRS --quiet # 必须 0 处"
+  echo "bash \"\$SKILL/scripts/verify_file_header.sh\" $DIRS --quiet    # 必须 0 处"
   echo '```'
+  echo
+  echo "上述四条命令不检查正文注释语言与质量，须另完成第 4 节人工复核及手册第 10 条。"
   echo
   echo "## 6. 提交拆分要求"
   echo
@@ -434,7 +458,7 @@ OK=1
 
 if [ "$OK" -eq 1 ]; then
   echo "✅ 自动可检查部分全部通过（格式与语义零违规）。"
-  echo "   仍需按 references/remediation-playbook.md 确认命名/文档/设计项。"
+  echo "   仍需按 references/remediation-playbook.md 第 10 条人工复核正文注释，并确认命名/文档/设计项。"
   exit 0
 fi
 

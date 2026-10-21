@@ -1,6 +1,6 @@
 ---
 name: swift-coding-standards
-description: 所有 Swift 工程的默认编码规范与强制工具链（swift-format + SwiftLint）。任何写、改、评审、重命名、格式化或迁移 Swift 代码的工作默认遵循本规范，无需用户显式点名；用户说「不规范」「修一下格式」「把代码改规范」而不带 Swift 字样时同样适用。覆盖命名（判据是「调用点能否读懂」而非禁用常见词）、格式（人工排版与工具排版同等有效）、文件头、注释与文档、语言与并发约束、体量上限、常量与魔法值、18 类缺陷检测、权威来源离线快照与引文校验、基线采集与五批迁移，以及既有代码的完整整改流程（必须格式化 + 命名 + 文档 + 语言约束全部到位，不得只跑格式化就收尾）。触发场景与触发词清单见正文「何时使用」。
+description: 当仓库包含 .swift、Package.swift 或 .xcodeproj 且任务涉及 Swift 代码时，AI 编程默认适用，无需用户主动调用；编写、修改、评审代码时遵守文件头及正文注释语言与质量规范。所有 Swift 工程的默认编码规范与强制工具链（swift-format + SwiftLint）。任何写、改、评审、重命名、格式化或迁移 Swift 代码的工作默认遵循本规范，无需用户显式点名；用户说「不规范」「修一下格式」「把代码改规范」而不带 Swift 字样时同样适用。覆盖命名（判据是「调用点能否读懂」而非禁用常见词）、格式（人工排版与工具排版同等有效）、文件头、注释与文档、语言与并发约束、体量上限、常量与魔法值、18 类缺陷检测、权威来源离线快照与引文校验、基线采集与五批迁移，以及既有代码的完整整改流程（必须格式化 + 命名 + 文档 + 语言约束全部到位，不得只跑格式化就收尾）。触发场景与触发词清单见正文「何时使用」。
 agent_created: true
 compatibility: Requires a Swift 6.x toolchain (for the bundled `swift format`) and bash with awk. SwiftLint is recommended for semantic rules (verified against 0.63; rule names may drift across major versions). All reference snapshots are bundled, so no network access is needed. Works on macOS and Linux; SwiftPM and .xcodeproj projects are both supported.
 ---
@@ -11,18 +11,18 @@ compatibility: Requires a Swift 6.x toolchain (for the bundled `swift format`) a
 
 ## 默认生效（无需显式唤起）
 
-**本规范对 Swift 代码默认生效。** 用户不需要说「请按编码规范来」，也不需要在提示里带上本 skill 的名字 —— 只要这次工作涉及 Swift 代码，就按本规范执行。
+**本规范对 Swift 工程里的 Swift 编程任务默认生效。** 先识别当前工程是否包含 `.swift`、`Package.swift` 或 `.xcodeproj`；即使用户只说实现功能、修 bug、写测试或评审代码，也应加载并应用本 skill。用户不需要说「请按编码规范来」，也不需要在提示里带上本 skill 的名字 —— 只要这次工作涉及 Swift 代码，就按本规范执行。
 
 - **不要等被点名**：涉及 Swift 代码时，先加载并应用本 skill，再动手写或改。
 - **不要自行取舍风格**：用户未指定风格时一律以本规范为准，不要在几种常见风格之间「看情况」。
 - **写完即自检**：改动 Swift 代码后按附录 A 清单自检。
 - **默认不等于擅自扩大改动**：默认生效指**风格判定**默认遵循本规范，不是默认去批量整改存量代码。大规模重命名 / 格式化仍需用户批准。
-- **场景选择硬判据（2026-10-20 增补，「已读取」不等于「已完整执行」）**：只要满足任一条件，任务完成前**必须**按场景五的终检命令验收并给出输出证据，与改动规模无关 —— ① 用户以「不规范」「改规范」「修一下格式」「顺便整理」为由提出修改（**即使没提 Swift 字样**，先识别工程类型再套用本行）；② 本次修改触碰到了存量违规代码；③ 新建了 Swift 文件（至少过 4.10 文件头检查）。只有「纯新增文件、无存量违规触碰」才可只做场景二。判定不了就按场景五走，宁可多验不可漏验。
+- **场景选择硬判据**：只要满足任一条件，任务完成前**必须**按场景五的终检命令验收并给出输出证据，与改动规模无关 —— ① 用户以「不规范」「改规范」「修一下格式」「顺便整理」为由提出修改（**即使没提 Swift 字样**，先识别工程类型再套用本行）；② 本次修改触碰到了存量违规代码；③ 新建了 Swift 文件（至少过 4.10 文件头检查）。只有「纯新增文件、无存量违规触碰」才可只做场景二。判定不了就按场景五走，宁可多验不可漏验。
 
 ## 两条最容易搞反的原则
 
 **1. 命名只针对「读不懂」，不针对「不眼熟」。**
-中文开发者普遍熟悉的常用词与高频缩写**明确可以接受，不要要求重命名**——完整可接受词表以 `references/naming-antipatterns.md` 第 0 节词典为**唯一权威**，各文件只引用、不复制（此前 `drain` 在词典与整改手册间漂移，根源就是多处副本）。真正要改的是三类：生僻词（`reify`/`thunk`/`amortize`）、自造缩写与单字母（`aniDur`/`l`/`w`）、对象或返回值无从判断。判据只有一条：**遮住定义只看调用点，陌生人能否说出这行在做什么。**
+中文开发者普遍熟悉的常用词与高频缩写**明确可以接受，不要要求重命名**——完整可接受词表以 `references/naming-antipatterns.md` 第 0 节词典为**唯一权威**，各文件只引用、不复制（同一事实留多份副本就会漂移）。真正要改的是三类：生僻词（`reify`/`thunk`/`amortize`）、自造缩写与单字母（`aniDur`/`l`/`w`）、对象或返回值无从判断。判据只有一条：**遮住定义只看调用点，陌生人能否说出这行在做什么。**
 
 **2. 人工排版与工具排版同等有效。**
 格式有两个合法来源：`swift format` 的输出、以及开发者手写的排版。**`--in-place` 不是提交前必做动作**；钩子与 CI 只做 `lint` 检查，禁止自动改写源码。手动断行、对齐等被保留（`respectsExistingLineBreaks: true`），需要长期豁免某处就加 `// swift-format-ignore`。必须改的只有这几类：分号、块内多语句压行、`defer{`、关键字与花括号之间缺空格，以及**成员之间缺分隔空行** —— 前四类 `swift format lint` 会报，**最后一类两类工具都查不出**，得跑 `scripts/verify_member_spacing.sh`（见正文 4.7）。文件头（4.10）同理，走 `scripts/verify_file_header.sh`。
@@ -96,7 +96,7 @@ bash "$SKILL/scripts/fetch_official_sources.sh" --freshness  # 联网对比上�
 
 ### 场景零之二：内部一致性自检（改完 skill 后跑，纯离线）
 
-SKILL.md、规范正文、整改手册、命名词典、两个模板资产之间存在多处**同一事实的副本**（验收条数、版本号、缩进/行长、规则分工、引文表）。历史上正是这些手抄副本造成了漂移。
+SKILL.md、规范正文、整改手册、命名词典、两个模板资产之间存在多处**同一事实的副本**（验收条数、版本号、缩进/行长、规则分工、引文表）；副本越多越容易漂移，因此这些比对全部交给脚本。
 
 ```bash
 bash "$SKILL/scripts/verify_consistency.sh"          # 不一致记 FAIL，已知待决项记 WARN
@@ -117,8 +117,10 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 
 1. 命名看第 3 章（拿不准查 `references/naming-antipatterns.md` 的快速替换表）。
 2. 格式看第 4 章；**人工排版同样合规**。
-3. 注释看 `references/comment-standards.md`。
-4. 写完运行：
+3. **先判定本次需写哪些注释，再写代码**：新建 Swift 文件须有真实文件头；新建/改动公开 API 须有说明调用契约的 `///`；复杂内部边界、生命周期、并发与 `@unchecked Sendable` 等须说明不可从代码看出的约束；简单直观私有成员无需凑注释。写注释前读取 `references/comment-standards.md` 第 1、2、6 节：根据项目既有约定确定注释语言；中文项目用中文，没有明确约定且中文沟通时默认中文。`///` 说明调用契约，`//` 说明设计原因；示例语言不能覆盖项目约定。
+4. 写完逐条复核**本次新增/修改的声明及其正文注释、受改动影响的邻近注释**（包括应有却缺失的注释）：语言一致、内容准确、参数/返回值/错误条件完整、不复述代码；没有需要注释的复杂契约时不为了覆盖率补注释。`swift format lint`、`missing_docs` 和文件头脚本均不能代替此复核。
+5. **新建文件的作者不可编造**：Xcode 新建采用 `___FULLUSERNAME___`（渲染 macOS 账户全名）；AI 新建先从账户全名（macOS `dscl`，回退 `id -un`）取真实创建者，日期用创建当天，项目名与版权主体要核对。严禁用 `<项目名> Team`、AI 名称或推测的个人名填作者 —— `verify_file_header.sh` **不带 `--creator` 也会拦下 `<项目名> Team`**。历史文件缺头时不能把当前用户或当天伪装成历史创建者，留待核实并说明未完成。若创建者不是当前账户，应由实际创建者明确提供；可用 `verify_file_header.sh` 的 `--creator` 在**仅含本次新建文件**的目录核验，旧文件不要强制按当前账户批量校验。
+6. 写完运行：
 
    ```bash
    swift format lint --recursive --strict Sources Tests
@@ -147,7 +149,7 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 
 用户明确说「按规范改」「把不规范的地方改掉」时，**不能只跑一次格式化就交付** —— 格式化不碰命名、文档、魔法值和语言约束，而后者恰恰是用户抱怨的重点。按 `references/remediation-playbook.md` 执行：
 
-1. **先读手册第 1 节**，确认「完整」的 9 条验收标准。
+1. **先读手册第 1 节**，确认「完整」的 10 条验收标准。
 2. 采集基线、生成报告骨架与待办清单（**不改 Swift 源码与既有配置**；注意缺配置时会自动生成 `.swift-format` / `.swiftlint.yml`（只新增不覆盖），且默认写出 `SWIFT_STANDARD_REPORT.md` 报告文件 —— 不是严格意义的「只读」，别误判修改边界）：
 
    ```bash
@@ -172,7 +174,7 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
    | 魔法字符串 | 提取具名常量（正文 5.9） |
    | 数值参数缺单位 | 补量纲（`timeoutMilliseconds`） |
 
-5. 终检**必须三条都干净**：
+5. 终检**四条命令都须通过，另做注释人工复核**：
 
    ```bash
    swift format lint --recursive --strict $DIRS                      # 必须无输出
@@ -181,17 +183,19 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
    bash "$SKILL/scripts/verify_file_header.sh" $DIRS --quiet         # 必须 0 处（前两条查不出）
    ```
 
+   对照手册第 10 条，检查正文 `//` / `///` 的语言、契约与过期内容，并在报告中记录结论；四条命令通过不代表注释合规。
+
 6. 把人工整改结果补进报告，**如实列出剩余项与理由**。
 
-> **判定「完整」的唯一标准是手册第 1 节的 9 条全部满足**，而不是「跑过脚本了」。只做了格式就等于没做完，必须明确告诉用户还剩什么、为什么。另外：`unused_import` 一类规则需要 `swiftlint analyze`，`lint` 不会报 —— 没有输出不等于达标。
+> **判定「完整」的唯一标准是手册第 1 节的 10 条全部满足**，而不是「跑过脚本了」。只做了格式就等于没做完，必须明确告诉用户还剩什么、为什么。另外：`unused_import` 一类规则需要 `swiftlint analyze`，`lint` 不会报 —— 没有输出不等于达标。
 
 ## 完成前自检（收尾门禁）
 
-「已读取 skill」不等于「已完整执行」—— description 与触发词只引导选择，没有机制阻止漏做验收就收尾。因此**宣告任务完成之前**，必须走完这个门禁（2026-10-20 增补）：
+「已读取 skill」不等于「已完整执行」—— description 与触发词只引导选择，没有机制阻止漏做验收就收尾。因此**宣告任务完成之前**，必须走完这个门禁：
 
 1. **列清单**：本轮触碰过（新建 / 修改）的 Swift 文件逐个列出。
-2. **对判据**：对照「默认生效」节的场景选择硬判据 —— 命中任一条（用户提了不规范 / 触碰存量违规 / 新建了 Swift 文件），就必须给出场景五终检的**命令输出证据**，格式类四条命令全部干净、9 条验收标准逐条有结论。
-3. **给证据**：证据是**命令输出**，不是「我检查过了」。给不出输出就补跑；跑了但没跑全（例如漏了 `verify_member_spacing.sh` 或 `verify_file_header.sh` 这类工具查不出的项）就补跑缺的。
+2. **对判据**：对照「默认生效」节的场景选择硬判据 —— 命中任一条（用户提了不规范 / 触碰存量违规 / 新建了 Swift 文件），就必须给出场景五终检的**命令输出证据**，格式类四条命令全部干净、10 条验收标准逐条有结论。
+3. **给证据**：机器项给出**命令输出**；正文注释人工项给出检查范围、语言约定和结论，不得用「lint 无输出」冒充通过。给不出输出就补跑；跑了但没跑全（例如漏了 `verify_member_spacing.sh` 或 `verify_file_header.sh` 这类工具查不出的项）就补跑缺的。
 4. **如实报告剩余项**：有验收过不了的项就明说还剩什么、为什么，**不得在证据缺失时宣告完成**。
 
 ## 工具链要点
@@ -199,7 +203,7 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 - **`swift format` 随 Swift 6.x 工具链自带**，先试它，不要再无脑 `brew install`。
 - **分工必须清晰**：`swift-format` 管格式，`SwiftLint` 管语义。`assets/swiftlint.yml` 已把全部格式规则显式禁用，避免两套工具冲突。
 - **尊重人工排版**：`respectsExistingLineBreaks` 不得关掉；局部豁免用 `// swift-format-ignore`。
-- **缩进与 Xcode 编辑器对齐（2026-09-11 决定，替代 09-10 的 2 空格 / 100 列）**：**每层 4 空格 / 行长 120 列**，并开启 `indentSwitchCaseLabels` 与 `indentConditionalCompilationBlocks`。
+- **缩进与 Xcode 编辑器对齐**：**每层 4 空格 / 行长 120 列**，并开启 `indentSwitchCaseLabels` 与 `indentConditionalCompilationBlocks`。
   - `.swift-format` 的 `indentation.spaces = 4`、`lineLength = 120`、`indentSwitchCaseLabels = true`、`indentConditionalCompilationBlocks = true`，与 `.swiftlint.yml` 的 `line_length.warning = 120` —— 五者必须始终一致。
   - **适用全部嵌套构造**：类型 / 函数体、if / for / while / do-catch / guard、闭包体、switch 的 case（含多层嵌套）、#if 块内容 —— 每层一律 +4，与 Xcode 回车后的自动缩进完全一致，写码不再与格式化打架。
   - **两个必须显式开启的开关**：swift-format 默认把 `case` 拍回与 `switch` 同级（`indentSwitchCaseLabels` 默认 false）；`indentConditionalCompilationBlocks` 默认虽为 true，但旧模板显式设过 `false`，集成时检查别把旧值带回来。
@@ -223,7 +227,7 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 - `references/comment-standards.md` —— **注释与文档规范**：`///` 使用范围与结构、DocC 标记、MARK、TODO/FIXME、并发注释、维护要求、Review 清单
 - `references/defect-catalog.md` —— **缺陷目录与检测方法**：每一类的检测命令、整改动作、真实样本、排查顺序
 - `references/naming-antipatterns.md` —— 生涩命名反模式词典与快速替换对照表（含「不查什么」清单）
-- `references/remediation-playbook.md` —— **完整整改手册**：9 条验收标准、整改顺序、逐类动作、报告要求、常见半途而废
+- `references/remediation-playbook.md` —— **完整整改手册**：10 条验收标准、整改顺序、逐类动作、报告要求、常见半途而废
 - `references/official/SOURCES.md` —— 权威来源登记表、分发策略、引文纪律、S6 冲突与取舍
 - `references/official/*.md` —— 权威来源原文快照（S1–S4 官方，S5/S6 行业权威），**随 skill 内置分发**（勿手工编辑）
 - `assets/swift-format.json` —— swift-format 配置模板（安装时复制为 `.swift-format`）
@@ -232,6 +236,6 @@ bash "$SKILL/scripts/bootstrap_swift_style.sh" "$PROJ" --check
 - `scripts/remediate.sh` —— **完整整改管线**：基线 → 机械修复 → 复检 → 待办清单 → 报告（`--check` / `--fix`）
 - `scripts/fetch_official_sources.sh` —— 快照巡检与刷新（`--status` 离线；`--freshness` / `--check` / 刷新需联网；`-h` 看用法）
 - `scripts/verify_citations.sh` —— 离线校验正文引文与快照是否逐字一致（含反向启发扫描：正文斜体英文句必须有快照出处）
-- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额、发布清单（插件·市场·许可）、文档命令可照抄性；期望值一律从单一权威来源推导，不写第二份硬编码
+- `scripts/verify_consistency.sh` —— skill 内部一致性自检：验收条数、版本号、缩进与行长、规则分工、frontmatter 限额、分发文件在位与悬空引用、文档命令可照抄性；期望值一律从单一权威来源推导，不写第二份硬编码
 - `scripts/verify_member_spacing.sh` —— **成员间空行检查**：swift-format 与 SwiftLint 都查不出这条规则，只能靠它（`--check` 只读 / `--fix` 只插空行）；判据与已知漏检边界写在脚本头部
 - `scripts/verify_file_header.sh` —— **文件头检查**（4.10 / 缺陷目录第 18 类）：swift-format 与 SwiftLint 都没有文件头规则，只能靠它（`--check` 只读 / `--fix` 只给缺整块头的文件补结构、作用行留 TODO；`--copyright` 传参严校版权主体）；判据与已知漏检边界写在脚本头部

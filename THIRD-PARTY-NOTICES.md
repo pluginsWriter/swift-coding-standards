@@ -1,6 +1,6 @@
 # 第三方内容：许可与署名
 
-**本插件自身的原创内容**（`SKILL.md`、`scripts/`、`assets/`、`README.md` 与本文件，
+**本 skill 自身的原创内容**（`SKILL.md`、`scripts/`、`assets/`、`README.md` 与本文件，
 以及 `references/` 下除 `official/` 外的各篇）以 **MIT** 许可发布，全文见同目录 `LICENSE`。
 
 **`references/official/` 目录是例外**：那里存放的是上游权威来源的**逐字原文快照**，
@@ -19,7 +19,7 @@
 
 来源登记、抓取地址与冲突取舍的完整说明见 `references/official/SOURCES.md`。
 
-## 本插件遵守的再分发条件
+## 本 skill 遵守的再分发条件
 
 - **Apache License 2.0**（S1 / S3 / S4 / S5）
   - 保留版权、许可与归属声明：各快照顶部的标注头 + 本文件 + `references/official/SOURCES.md` + `references/swift-coding-standards.md` 第 1 章。

@@ -37,7 +37,7 @@ bash "$SKILL/scripts/remediate.sh" "$PROJ" --check
 | 15 | 测试断言过弱 | `swiftlint lint --quiet 2>&1 \| grep -E 'xctfail_message\|xct_specific_matcher'` | 补失败说明；改用专用断言 |
 | 16 | 行长失控 | `swiftlint lint --quiet 2>&1 \| grep line_length` | 先提取中间变量，再断行 |
 | 17 | 成员间缺分隔空行 | `bash "$SKILL/scripts/verify_member_spacing.sh" $DIRS`（**swift-format 与 SwiftLint 都没有这条规则**，只能用它） | `--fix` 插入空行；注意 S5 除外条款：单行存储属性之间、单行 enum case 之间、紧密相关的两个属性之间**可以**不留空行，不要误改 |
-| 18 | 文件头缺失或不合规 | `bash "$SKILL/scripts/verify_file_header.sh" $DIRS`（**swift-format 与 SwiftLint 都没有文件头规则**，只能用它；判据见正文 4.10：查结构不查值，版权主体传 `--copyright "UGREEN. All rights reserved."` 才严校） | 缺整块头用 `--fix` 补结构（作用行留 TODO，需人工补写）；已有注释头但结构不完整的对照 4.10 人工修，脚本不覆盖别人的头 |
+| 18 | 文件头缺失或不合规 | `bash "$SKILL/scripts/verify_file_header.sh" $DIRS`（**swift-format 与 SwiftLint 都没有文件头规则**，只能用它；判据见正文 4.10：查结构不查值，版权主体传 `--copyright "Example Corp. All rights reserved."` 才严校） | 缺整块头用 `--fix` 补结构（作用行留 TODO，需人工补写）；已有注释头但结构不完整的对照 4.10 人工修，脚本不覆盖别人的头 |
 
 ## 2. 需要判断，但可用 grep 定量（部分可检出）
 
@@ -64,27 +64,26 @@ bash "$SKILL/scripts/remediate.sh" "$PROJ" --check
 
 ---
 
-## 4. 按类别的实测样本（来自 UGDockNative，188 文件 / 17K 行）
+## 4. 按类别的真实样本
 
-这些是**真实检出**的样本，可作为「什么算违规」的对照。整改时不要照抄结论，要按当前代码重新判断。
+以下全部来自一个 188 文件 / 17K 行的真实 Swift 工程。为便于对外分发，样本只保留**缺陷形态**，不写文件名与行号；整改时不要照抄结论，要按当前代码重新判断。
 
-| 类别 | 样本 |
+| 类别 | 形态 |
 | --- | --- |
-| 一行多语句 | `BridgeDisplayMapper.swift:41`：`guard params.isEmpty else { throw ... }; return .snapshot` |
-| 一行多 `case` | `DisplayFeature.swift:20`：`case fill, fit, stretch` |
-| 无标签关联值 | `BridgeDisplayMapper.swift:25`：`case wallpaper([String], String, String)` |
-| 大元组 | `IOKitUSBDeviceSource.swift:100`、`BridgePeripheralMapper.swift:27` |
-| 魔法字符串 | `BridgeDisplayMapper.swift` 一个文件内 `"display_id"` / `"changes"` 等键重复出现多次 |
-| 魔法模式串 | `DisplayPreferences.swift:73` 与 `BridgeDisplayMapper.swift:66` 各自硬编码 `["fit","fill","stretch"]` |
-| 强制解包 | `ApplicationSettingsCoordinator.swift:90`：`targets[entry.owner.scope]!`（字典下标 + 强制解包） |
-| `try!` | `SettingsBackup.swift:39`：`try! .init(value: ...)`（error 级） |
-| 复杂度 47 | `HIDReportDescriptorLayout.swift:46`（上限 15） |
-| 函数 130 行 | `DefaultCoreRuntimeBuilder.swift:66` |
-| 类型 608 行 | `UGApplicationRuntime.swift:21`（actor body） |
-| 过长命名 | `CoreErrorCodeValues.swift:13`：55 字符常量名 |
-| 并发逃逸 | 12 处 `@unchecked Sendable`，分布在 `UGHardware` 与 `UGDockNativeBridge` |
-| 成员间缺分隔空行 | `UGDisplay/CoreGraphicsDisplayAdapter.swift:230`：`private func resolve` 紧贴上一个函数的 `}`；同类共 Sources 374 处 / 49 文件、Tests 329 处 / 42 文件（2026-09-11 重扫） |
-
+| 一行多语句 | `guard params.isEmpty else { throw ... }; return .snapshot` —— 校验与返回压在同一行 |
+| 一行多 `case` | `case fill, fit, stretch` 挤在一行 |
+| 无标签关联值 | `case wallpaper([String], String, String)` —— 三个裸关联值无从判断含义 |
+| 大元组 | 4 成员以上元组作为返回值 / 协议字段，调用点靠下标取值 |
+| 魔法字符串 | 同一文件内 `"display_id"`、`"changes"` 等键在映射、校验、序列化处各写一遍 |
+| 魔法模式串 | `["fit","fill","stretch"]` 在两个不相干文件里各自硬编码 |
+| 强制解包 | `targets[entry.owner.scope]!` —— 字典下标与强制解包叠在一起 |
+| `try!` | `try! .init(value: ...)`（error 级） |
+| 复杂度 47 | 单个函数圈复杂度 47（上限 15） |
+| 函数 130 行 | 单个函数 130 行 |
+| 类型 608 行 | 单个 actor 608 行 |
+| 过长命名 | 55 字符的常量名 |
+| 并发逃逸 | 12 处 `@unchecked Sendable` 集中在两个硬件/桥接层，均无就近说明 |
+| 成员间缺分隔空行 | `private func resolve` 紧贴上一个函数的 `}`；同类共 Sources 374 处 / 49 文件、Tests 329 处 / 42 文件 |
 ---
 
 ## 5. 建议的排查顺序

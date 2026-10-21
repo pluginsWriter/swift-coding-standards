@@ -20,7 +20,7 @@
 | 复杂初始化器、异步操作、可能抛错的方法 | 应该 |
 | 含义从名称与类型可直接看出的简单 `private` 成员 | 可以省略 |
 
-**不要为了覆盖率给每个私有变量、简单 getter 或直观辅助方法加注释。** 无信息增益的注释是负债。
+**先检查声明是否缺少应有注释，而不仅是检查现有注释的语言。** 公开 API 的类型别名/回调需要说明字节所有权、生命周期、线程与错误条件（适用时）；`@unchecked Sendable` 等编译器无法验证的内部不变量需有就近说明。不要为了覆盖率给每个私有变量、简单 getter 或直观辅助方法加注释。 无信息增益的注释是负债。
 
 ### 1.2 内容结构
 
@@ -32,16 +32,15 @@
 4. 最后是注意事项、复杂度或重要约束。
 
 ```swift
-/// Loads the current state of a connected device.
+/// 加载已连接设备的当前状态。
 ///
-/// This method returns cached data when the provider is temporarily
-/// unavailable.
+/// 提供者暂时不可用时返回缓存数据。
 ///
 /// - Parameters:
-///   - identifier: The stable identifier of the device.
-///   - cachePolicy: How long a cached value may be reused.
-/// - Returns: The latest known device state.
-/// - Throws: `DeviceError.notFound` when the device is unavailable.
+///   - identifier: 设备的稳定标识。
+///   - cachePolicy: 缓存数据允许复用的时长。
+/// - Returns: 最近一次已知的设备状态。
+/// - Throws: 设备不可用时抛出 `DeviceError.notFound`。
 func loadState(
     for identifier: DeviceIdentifier,
     cachePolicy: CachePolicy
@@ -53,13 +52,13 @@ func loadState(
 ### 1.3 DocC 标记
 
 ```swift
-/// - Parameter value: The value to process.
-/// - Returns: The processed value.
-/// - Throws: An error when validation fails.
-/// - Note: Additional information for normal usage.
-/// - Important: A condition callers must understand.
-/// - Warning: A behavior that may cause data loss or incorrect results.
-/// - Complexity: O(n), where n is the number of elements.
+/// - Parameter value: 待处理的值。
+/// - Returns: 处理后的值。
+/// - Throws: 验证失败时抛出的错误。
+/// - Note: 正常使用时的补充信息。
+/// - Important: 调用方必须了解的条件。
+/// - Warning: 可能导致数据丢失或结果错误的行为。
+/// - Complexity: O(n)，其中 n 为元素数量。
 ```
 
 - 标识符、类型名、代码片段用反引号：`` `DeviceState` ``。
@@ -84,13 +83,13 @@ func loadState(
 
 ```swift
 // 推荐：解释为什么
-// Keep provider access outside MainActor because HID reads may block.
+// HID 读取可能阻塞，因此不能在 MainActor 上访问提供者。
 let state = await provider.readState()
 
 // 不推荐：复述代码
-// Read the state.
+// 读取状态。
 let state = await provider.readState()
-// Increase the retry count by one.
+// 将重试次数加一。
 retryCount += 1
 ```
 
@@ -143,8 +142,7 @@ retryCount += 1
 - 存在必须遵循的锁顺序、缓存一致性或对象生命周期规则。
 
 ```swift
-// Capture the generation before suspension. Actor reentrancy may replace
-// the active connection while the network request is running.
+// 挂起前记录连接代数；网络请求期间 actor 重入可能替换当前连接。
 let generation = connectionGeneration
 let response = try await client.send(request)
 guard generation == connectionGeneration else { return }
@@ -154,7 +152,7 @@ guard generation == connectionGeneration else { return }
 
 ## 6. 语言与格式
 
-- **同一项目内注释语言必须一致。** 对外 SDK、开源项目、跨地区团队通常用英文；内部中文团队可用中文，但 API、类型与技术术语保持英文原文。
+- **同一项目内注释语言必须遵循项目既有约定并保持一致。** 中文项目用中文；对外 SDK、开源项目、跨地区团队若已有英文约定则用英文。未声明约定、也无法从现有正文注释判断时，中文对话默认用中文；如项目已有其他明确语言约定，优先遵守项目约定。`- Parameter` / `- Returns` 等 DocC 标记及 API、类型、技术术语保持英文原文。文件头版权文字与 `// MARK:` 结构标记不用于判断正文注释语言。
 - 文档段落用完整、清晰的句子；**摘要保持简短**（一句话）。
 - **`//` 与 `///` 之后必须有一个空格。**
 - **注释独占一行**，不得写在代码行尾后紧跟多个语句（行尾注释仅允许用于简短标注，且与代码之间空 2 个空格）。
@@ -173,6 +171,8 @@ guard generation == connectionGeneration else { return }
 
 ## 8. Code Review 检查清单
 
+- [ ] 新建/修改的公开 API、复杂内部边界及并发不变量是否有**应有的**注释（不能只检查已有注释）？
+- [ ] 本次新增/修改的正文 `//` / `///` 是否遵守项目注释语言？不要把文件头合规误当正文合规。
 - [ ] 公开 API 与重要内部接口是否说明了调用契约？
 - [ ] 参数、返回值、抛出条件以及异步取消行为是否准确？
 - [ ] 实现注释是否解释了**原因**，而不是复述代码？
